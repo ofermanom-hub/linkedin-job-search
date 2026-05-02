@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LinkedIn Job Digest — Tel Aviv</title>
+  <title>Job Digest — Tel Aviv</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1b2a;color:#e2e8f0;min-height:100vh}
-    .page{max-width:1060px;margin:0 auto;padding:40px 20px}
+    .page{max-width:1100px;margin:0 auto;padding:40px 20px}
     h1{font-size:26px;font-weight:700;color:#6ee7c5;margin-bottom:4px}
     .subtitle{color:rgba(255,255,255,.45);font-size:13px;margin-bottom:32px}
 
@@ -40,6 +40,10 @@
     .b-onsite{background:rgba(100,116,139,.14);color:#94a3b8}
     .b-unknown{background:rgba(100,116,139,.07);color:#475569;font-weight:400}
 
+    /* Source badges */
+    .b-linkedin{background:rgba(10,102,194,.25);color:#60a5fa}
+    .b-indeed{background:rgba(245,158,11,.18);color:#fbbf24}
+
     /* Row highlight for hybrid */
     tr.row-hybrid td{background:rgba(110,231,197,.04)}
     tr.row-hybrid:hover td{background:rgba(110,231,197,.07)}
@@ -55,7 +59,6 @@
     .old{color:#475569;font-size:12px}
 
     .empty{text-align:center;padding:60px 20px;color:rgba(255,255,255,.25);font-size:15px}
-    .error-msg{color:#f87171;font-size:13px;margin-top:10px}
 
     /* Divider between hybrid and rest */
     tr.section-divider td{padding:3px 14px;background:rgba(255,255,255,.03);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.2);border-bottom:1px solid rgba(255,255,255,.06)}
@@ -63,15 +66,15 @@
 </head>
 <body>
 <div class="page">
-  <h1>LinkedIn Job Digest</h1>
+  <h1>Job Digest — LinkedIn + Indeed</h1>
   <p class="subtitle">Senior Implementation · TAM · CX · Enablement · Tel Aviv &amp; Center District</p>
 
   <div class="actions">
-    <button class="btn btn-search" id="btn-search" onclick="runSearch()">&#128269; Search LinkedIn</button>
+    <button class="btn btn-search" id="btn-search" onclick="runSearch()">&#128269; Search LinkedIn + Indeed</button>
     <button class="btn btn-gmail" id="btn-send" onclick="sendToGmail()" disabled>&#9993; Send to Gmail</button>
     <span class="count" id="count-badge"></span>
   </div>
-  <div class="status" id="status">Click "Search LinkedIn" to fetch the latest openings.</div>
+  <div class="status" id="status">Click "Search LinkedIn + Indeed" to fetch the latest openings.</div>
 
   <div class="table-wrap" id="table-wrap"></div>
 </div>
@@ -82,10 +85,16 @@ const RECIPIENT = 'ofer.man.om@gmail.com';
 const LOCATION  = 'Tel Aviv, Israel';
 const CORS      = 'https://corsproxy.io/?';
 
-const QUERIES = [
+const LI_QUERIES = [
   'Senior Implementation Manager OR Implementation Manager OR Senior Implementation Engineer OR Solution Implementation Manager',
   'Senior Technical Account Manager OR Technical Account Manager OR Senior TAM',
   'Senior Onboarding Engineer OR Senior CX Engineer OR Enablement Manager OR Senior Enablement Manager OR Enablement Lead OR Senior Consultant',
+];
+
+const IN_QUERIES = [
+  'Senior Implementation Manager Implementation Engineer',
+  'Senior Technical Account Manager TAM Onboarding',
+  'Senior CX Engineer Enablement Manager Senior Consultant',
 ];
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -102,7 +111,7 @@ function workTypePriority(wt){
 
 function postedClass(txt){
   if (!txt) return 'old';
-  if (/\d+\s*(minute|hour)s?\s*ago/i.test(txt)) return 'fresh';
+  if (/today|\d+\s*(minute|hour)s?\s*ago/i.test(txt)) return 'fresh';
   if (/^(\d+\s*days?\s*ago|1\s*week\s*ago)$/i.test(txt)) return 'fresh';
   if (/[2-4]\s*weeks?\s*ago/i.test(txt)) return 'recent';
   return 'old';
@@ -110,6 +119,14 @@ function postedClass(txt){
 
 function badgeClass(wt){
   return {Hybrid:'b-hybrid', Remote:'b-remote', 'On-site':'b-onsite'}[wt] || 'b-unknown';
+}
+
+function detectWorkType(text){
+  const t = text.toLowerCase();
+  if (/\bhybrid\b/.test(t))   return 'Hybrid';
+  if (/\bremote\b/.test(t))   return 'Remote';
+  if (/\bon.?site\b/.test(t)) return 'On-site';
+  return 'Not specified';
 }
 
 // ── LinkedIn fetch + parse ───────────────────────────────────────────────────
@@ -121,7 +138,7 @@ async function fetchLinkedIn(keywords, location){
   return resp.text();
 }
 
-function parseCards(html){
+function parseLinkedIn(html){
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const jobs = [];
   doc.querySelectorAll('li').forEach(card => {
@@ -133,35 +150,94 @@ function parseCards(html){
     const wtEl      = card.querySelector('.job-search-card__workplace-type');
     if (!titleEl) return;
 
-    // Work type — from dedicated element or fallback keyword scan
     let workType = 'Not specified';
     if (wtEl) {
-      const t = wtEl.textContent.trim();
-      if (/hybrid/i.test(t))   workType = 'Hybrid';
-      else if (/remote/i.test(t))  workType = 'Remote';
-      else if (/on.?site/i.test(t)) workType = 'On-site';
+      workType = detectWorkType(wtEl.textContent);
     } else {
-      const txt = card.textContent;
-      if (/\bhybrid\b/i.test(txt))  workType = 'Hybrid';
-      else if (/\bremote\b/i.test(txt)) workType = 'Remote';
+      workType = detectWorkType(card.textContent);
     }
 
     jobs.push({
-      title:      titleEl.textContent.trim(),
-      company:    companyEl ? companyEl.textContent.trim() : '',
-      location:   locEl ? locEl.textContent.trim() : LOCATION,
-      url:        linkEl ? linkEl.href.split('?')[0] : '',
-      posted:     timeEl ? (timeEl.textContent.trim() || timeEl.getAttribute('datetime') || '') : '',
+      title:    titleEl.textContent.trim(),
+      company:  companyEl ? companyEl.textContent.trim() : '',
+      location: locEl ? locEl.textContent.trim() : LOCATION,
+      url:      linkEl ? linkEl.href.split('?')[0] : '',
+      posted:   timeEl ? (timeEl.textContent.trim() || timeEl.getAttribute('datetime') || '') : '',
       workType,
+      source:   'LinkedIn',
     });
   });
   return jobs;
 }
 
+// ── Indeed RSS fetch + parse ─────────────────────────────────────────────────
+async function fetchIndeedRSS(keywords, location){
+  const target = 'https://www.indeed.com/rss'
+    + `?q=${encodeURIComponent(keywords)}&l=${encodeURIComponent(location)}&sort=date&fromage=30`;
+  const resp = await fetch(CORS + encodeURIComponent(target));
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.text();
+}
+
+function parseIndeedRSS(xml){
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  // Detect parse error
+  if (doc.querySelector('parsererror')) return [];
+  const jobs = [];
+
+  doc.querySelectorAll('item').forEach(item => {
+    const rawTitle  = item.querySelector('title')?.textContent?.trim() || '';
+    const link      = item.querySelector('link')?.nextSibling?.nodeValue?.trim()
+                   || item.querySelector('guid')?.textContent?.trim() || '';
+    const desc      = item.querySelector('description')?.textContent || '';
+    const pubDate   = item.querySelector('pubDate')?.textContent || '';
+
+    if (!rawTitle) return;
+
+    // Title format: "Job Title - Company Name (Location)" or "Job Title - Company Name"
+    const dashIdx = rawTitle.lastIndexOf(' - ');
+    let jobTitle = dashIdx > 0 ? rawTitle.substring(0, dashIdx) : rawTitle;
+    let company  = dashIdx > 0 ? rawTitle.substring(dashIdx + 3) : '';
+    // Strip trailing location in parens from company: "Acme Corp (Tel Aviv)"
+    company = company.replace(/\s*\([^)]*\)\s*$/, '').trim();
+
+    // Work type from description HTML
+    const tmpDiv = document.createElement('div');
+    tmpDiv.innerHTML = desc;
+    const descText = tmpDiv.textContent || '';
+    const workType = detectWorkType(descText);
+
+    // Parse pubDate → relative string
+    let posted = '';
+    if (pubDate) {
+      try {
+        const diffDays = Math.floor((Date.now() - new Date(pubDate).getTime()) / 86400000);
+        if (diffDays <= 0)      posted = 'Today';
+        else if (diffDays === 1) posted = '1 day ago';
+        else if (diffDays < 7)  posted = `${diffDays} days ago`;
+        else if (diffDays < 14) posted = '1 week ago';
+        else                    posted = `${Math.floor(diffDays/7)} weeks ago`;
+      } catch(e) {}
+    }
+
+    if (jobTitle) jobs.push({
+      title:    jobTitle,
+      company,
+      location: LOCATION,
+      url:      link,
+      posted,
+      workType,
+      source:   'Indeed',
+    });
+  });
+  return jobs;
+}
+
+// ── Dedupe (title+company key, cross-source) ─────────────────────────────────
 function dedupe(jobs){
   const seen = new Set();
   return jobs.filter(j => {
-    const k = j.title.toLowerCase() + '|' + j.company.toLowerCase();
+    const k = j.title.toLowerCase().replace(/\s+/g,' ') + '|' + j.company.toLowerCase().replace(/\s+/g,' ');
     if (seen.has(k)) return false;
     seen.add(k); return true;
   });
@@ -177,11 +253,14 @@ function renderTable(jobs){
   const hybridJobs = jobs.filter(j => j.workType === 'Hybrid');
   const otherJobs  = jobs.filter(j => j.workType !== 'Hybrid');
 
+  function sourceClass(s){ return s === 'LinkedIn' ? 'b-linkedin' : 'b-indeed'; }
+
   function row(j){
     const cls = j.workType === 'Hybrid' ? ' class="row-hybrid"' : '';
     return `<tr${cls}>
       <td><span class="badge ${badgeClass(j.workType)}">${esc(j.workType)}</span></td>
-      <td><a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" class="job-link">${esc(j.title)}</a></td>
+      <td><span class="badge ${sourceClass(j.source)}">${esc(j.source)}</span></td>
+      <td>${j.url ? `<a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" class="job-link">${esc(j.title)}</a>` : esc(j.title)}</td>
       <td class="company">${esc(j.company)}</td>
       <td class="loc">${esc(j.location)}</td>
       <td class="${postedClass(j.posted)}">${esc(j.posted)}</td>
@@ -190,19 +269,19 @@ function renderTable(jobs){
 
   let tbody = '';
   if (hybridJobs.length){
-    tbody += `<tr class="section-divider"><td colspan="5">&#9670; Hybrid — ${hybridJobs.length} role${hybridJobs.length>1?'s':''}</td></tr>`;
+    tbody += `<tr class="section-divider"><td colspan="6">&#9670; Hybrid — ${hybridJobs.length} role${hybridJobs.length>1?'s':''}</td></tr>`;
     tbody += hybridJobs.map(row).join('');
   }
   if (otherJobs.length){
     if (hybridJobs.length)
-      tbody += `<tr class="section-divider"><td colspan="5">Other — ${otherJobs.length} role${otherJobs.length>1?'s':''}</td></tr>`;
+      tbody += `<tr class="section-divider"><td colspan="6">Other — ${otherJobs.length} role${otherJobs.length>1?'s':''}</td></tr>`;
     tbody += otherJobs.map(row).join('');
   }
 
   document.getElementById('table-wrap').innerHTML = `
     <table>
       <thead><tr>
-        <th>Work Type</th><th>Job Title</th><th>Company</th><th>Location</th><th>Posted</th>
+        <th>Work Type</th><th>Source</th><th>Job Title</th><th>Company</th><th>Location</th><th>Posted</th>
       </tr></thead>
       <tbody>${tbody}</tbody>
     </table>`;
@@ -218,17 +297,32 @@ async function runSearch(){
   document.getElementById('count-badge').style.display = 'none';
   allJobs = [];
 
-  for (let i = 0; i < QUERIES.length; i++){
-    setStatus(`[${i+1}/${QUERIES.length}] ${QUERIES[i].substring(0,70)}…`);
+  // ── LinkedIn ─────────────────────────────────────────────────────────────
+  for (let i = 0; i < LI_QUERIES.length; i++){
+    setStatus(`LinkedIn [${i+1}/${LI_QUERIES.length}] ${LI_QUERIES[i].substring(0,65)}…`);
     try {
-      const html = await fetchLinkedIn(QUERIES[i], LOCATION);
-      const found = parseCards(html);
-      allJobs.push(...found);
+      const html = await fetchLinkedIn(LI_QUERIES[i], LOCATION);
+      allJobs.push(...parseLinkedIn(html));
     } catch(e){
-      setStatus(`[${i+1}/${QUERIES.length}] ⚠ ${e.message} — check console`);
-      console.error(e);
+      setStatus(`LinkedIn [${i+1}] ⚠ ${e.message}`);
+      console.error('LinkedIn error:', e);
     }
-    if (i < QUERIES.length - 1) await sleep(900);
+    if (i < LI_QUERIES.length - 1) await sleep(900);
+  }
+
+  await sleep(600);
+
+  // ── Indeed ───────────────────────────────────────────────────────────────
+  for (let i = 0; i < IN_QUERIES.length; i++){
+    setStatus(`Indeed [${i+1}/${IN_QUERIES.length}] ${IN_QUERIES[i].substring(0,65)}…`);
+    try {
+      const xml = await fetchIndeedRSS(IN_QUERIES[i], LOCATION);
+      allJobs.push(...parseIndeedRSS(xml));
+    } catch(e){
+      setStatus(`Indeed [${i+1}] ⚠ ${e.message}`);
+      console.error('Indeed error:', e);
+    }
+    if (i < IN_QUERIES.length - 1) await sleep(900);
   }
 
   allJobs = dedupe(allJobs);
@@ -241,65 +335,24 @@ async function runSearch(){
   badge.style.display = 'inline-block';
 
   const hybridCount = allJobs.filter(j => j.workType === 'Hybrid').length;
-  setStatus(`Done — ${allJobs.length} unique roles (${hybridCount} hybrid). Hybrid listed first.`);
+  const liCount = allJobs.filter(j => j.source === 'LinkedIn').length;
+  const inCount = allJobs.filter(j => j.source === 'Indeed').length;
+  setStatus(`Done — ${allJobs.length} unique roles (${hybridCount} hybrid) · LinkedIn: ${liCount}  Indeed: ${inCount}`);
 
   btnSearch.disabled = false;
-  btnSearch.textContent = '🔍 Search LinkedIn';
+  btnSearch.textContent = '🔍 Search LinkedIn + Indeed';
   if (allJobs.length) btnSend.disabled = false;
 }
 
 // ── Email ─────────────────────────────────────────────────────────────────────
-function buildHtmlEmail(jobs){
-  const today = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  const wtStyle = wt =>
-    wt === 'Hybrid'   ? 'background:#e6faf4;color:#059669;'  :
-    wt === 'Remote'   ? 'background:#eef0ff;color:#4f46e5;'  :
-    wt === 'On-site'  ? 'background:#f1f5f9;color:#64748b;'  :
-                        'background:#f8fafc;color:#94a3b8;';
-
-  const rows = jobs.map(j => `
-    <tr>
-      <td style="padding:10px 12px;border-bottom:1px solid #eee">
-        <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;${wtStyle(j.workType)}">${j.workType}</span>
-      </td>
-      <td style="padding:10px 12px;border-bottom:1px solid #eee;font-weight:600">
-        ${j.url ? `<a href="${j.url}" style="color:#0a66c2;text-decoration:none">${j.title}</a>` : j.title}
-      </td>
-      <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#555">${j.company}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#777;font-size:12px">${j.location}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#999;font-size:12px">${j.posted}</td>
-    </tr>`).join('');
-
-  return `<html><body style="font-family:Arial,sans-serif;color:#333;max-width:900px;margin:auto">
-<div style="background:#0a66c2;padding:22px 28px;border-radius:8px 8px 0 0">
-  <h2 style="color:#fff;margin:0;font-size:20px">LinkedIn Job Digest</h2>
-  <p style="color:rgba(255,255,255,.7);margin:6px 0 0;font-size:13px">Senior Implementation · TAM · CX · Enablement · Tel Aviv · ${today}</p>
-</div>
-<table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #ddd;border-top:none">
-  <thead><tr style="background:#f0f4f8">
-    <th style="padding:10px 12px;text-align:left;color:#0a66c2;font-size:11px;text-transform:uppercase;letter-spacing:.06em">Work Type</th>
-    <th style="padding:10px 12px;text-align:left;color:#0a66c2;font-size:11px;text-transform:uppercase;letter-spacing:.06em">Title</th>
-    <th style="padding:10px 12px;text-align:left;color:#0a66c2;font-size:11px;text-transform:uppercase;letter-spacing:.06em">Company</th>
-    <th style="padding:10px 12px;text-align:left;color:#0a66c2;font-size:11px;text-transform:uppercase;letter-spacing:.06em">Location</th>
-    <th style="padding:10px 12px;text-align:left;color:#0a66c2;font-size:11px;text-transform:uppercase;letter-spacing:.06em">Posted</th>
-  </tr></thead>
-  <tbody>${rows}</tbody>
-</table>
-<p style="font-size:11px;color:#94a3b8;padding:14px 12px;border:1px solid #ddd;border-top:none;border-radius:0 0 8px 8px;margin:0">
-  ${jobs.length} roles · Hybrid first · Generated by Claude Code Job Search · ${today}
-</p>
-</body></html>`;
-}
-
 function sendToGmail(){
   if (!allJobs.length) return;
 
   const today = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  const subject = `LinkedIn Job Digest — Tel Aviv · ${today}`;
+  const subject = `Job Digest — LinkedIn + Indeed · Tel Aviv · ${today}`;
 
-  // Plain-text body for Gmail compose URL
   const body = allJobs.map((j,i) =>
-    `${i+1}. [${j.workType}] ${j.title} @ ${j.company}\n   ${j.location}${j.posted?' · '+j.posted:''}\n   ${j.url}`
+    `${i+1}. [${j.workType}][${j.source}] ${j.title} @ ${j.company}\n   ${j.location}${j.posted?' · '+j.posted:''}\n   ${j.url}`
   ).join('\n\n');
 
   const gmailUrl = 'https://mail.google.com/mail/?view=cm'
