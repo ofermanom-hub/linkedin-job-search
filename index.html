@@ -3,29 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Job Digest — Tel Aviv</title>
+  <title>LinkedIn Job Digest — Tel Aviv</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1b2a;color:#e2e8f0;min-height:100vh}
     .page{max-width:1060px;margin:0 auto;padding:40px 20px}
     h1{font-size:26px;font-weight:700;color:#6ee7c5;margin-bottom:4px}
-    .subtitle{color:rgba(255,255,255,.45);font-size:13px;margin-bottom:32px}
+    .subtitle{color:rgba(255,255,255,.45);font-size:13px;margin-bottom:28px}
 
-    .actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
     .btn{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border-radius:8px;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:background .15s,transform .1s;font-family:inherit}
     .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
     .btn-search{background:#0F6E56;color:#fff}
     .btn-search:not(:disabled):hover{background:#0a5442;transform:translateY(-1px)}
-    .btn-gmail{background:#0a66c2;color:#fff}
-    .btn-gmail:not(:disabled):hover{background:#004182;transform:translateY(-1px)}
     .count{background:rgba(110,231,197,.15);color:#6ee7c5;font-size:12px;font-weight:700;padding:3px 12px;border-radius:20px;display:none}
 
     .status{font-size:12px;color:rgba(255,255,255,.35);font-family:monospace;min-height:16px;margin-bottom:18px}
 
-    .table-wrap{border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.07)}
-    table{width:100%;border-collapse:collapse;background:#1a2d42}
+    .table-wrap{border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.07);overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table{width:100%;border-collapse:collapse;background:#1a2d42;min-width:480px}
     thead tr{background:#243548}
-    th{padding:11px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6ee7c5}
+    th{padding:11px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6ee7c5;white-space:nowrap}
     td{padding:10px 14px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:middle}
     tr:last-child td{border-bottom:none}
     tbody tr:hover td{background:rgba(255,255,255,.025)}
@@ -48,6 +46,19 @@
     .old{color:#475569;font-size:12px}
     .empty{text-align:center;padding:60px 20px;color:rgba(255,255,255,.25);font-size:15px}
     tr.section-divider td{padding:3px 14px;background:rgba(255,255,255,.03);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.2);border-bottom:1px solid rgba(255,255,255,.06)}
+
+    /* Mobile */
+    @media(max-width:600px){
+      .page{padding:24px 14px}
+      h1{font-size:21px}
+      .subtitle{font-size:12px;margin-bottom:20px}
+      .btn{padding:9px 16px;font-size:13px}
+      th{padding:9px 10px;font-size:10px}
+      td{padding:9px 10px;font-size:12px}
+      .col-loc{display:none}
+      .col-posted{display:none}
+      .job-meta{display:block;color:rgba(255,255,255,.4);font-size:11px;margin-top:3px;font-weight:400}
+    }
   </style>
 </head>
 <body>
@@ -57,7 +68,6 @@
 
   <div class="actions">
     <button class="btn btn-search" id="btn-search" onclick="runSearch()">&#128269; Search LinkedIn</button>
-    <button class="btn btn-gmail" id="btn-send" onclick="createGmailDraft()" disabled>&#9993; Create Gmail Draft</button>
     <span class="count" id="count-badge"></span>
   </div>
   <div class="status" id="status">Click "Search LinkedIn" to fetch the latest openings.</div>
@@ -65,9 +75,8 @@
 </div>
 
 <script>
-const RECIPIENT = 'ofer.man.om@gmail.com';
-const LOCATION  = 'Tel Aviv, Israel';
-const CORS      = 'https://corsproxy.io/?';
+const LOCATION = 'Tel Aviv, Israel';
+const CORS     = 'https://corsproxy.io/?';
 
 const LI_QUERIES = [
   'Senior Implementation Manager OR Implementation Manager OR Senior Implementation Engineer OR Solution Implementation Manager',
@@ -82,53 +91,52 @@ function setStatus(msg){ document.getElementById('status').textContent = msg; }
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
 function workTypePriority(wt){
-  return {Hybrid:0, Remote:1, 'On-site':2, 'Not specified':3}[wt] ?? 3;
+  return {Hybrid:0,Remote:1,'On-site':2,'Not specified':3}[wt]??3;
 }
 function postedClass(txt){
-  if (!txt) return 'old';
-  if (/today|\d+\s*(minute|hour)s?\s*ago/i.test(txt)) return 'fresh';
-  if (/^(\d+\s*days?\s*ago|1\s*week\s*ago)$/i.test(txt)) return 'fresh';
-  if (/[2-4]\s*weeks?\s*ago/i.test(txt)) return 'recent';
+  if(!txt) return 'old';
+  if(/today|\d+\s*(minute|hour)s?\s*ago/i.test(txt)) return 'fresh';
+  if(/^(\d+\s*days?\s*ago|1\s*week\s*ago)$/i.test(txt)) return 'fresh';
+  if(/[2-4]\s*weeks?\s*ago/i.test(txt)) return 'recent';
   return 'old';
 }
 function badgeClass(wt){
-  return {Hybrid:'b-hybrid', Remote:'b-remote', 'On-site':'b-onsite'}[wt] || 'b-unknown';
+  return {Hybrid:'b-hybrid',Remote:'b-remote','On-site':'b-onsite'}[wt]||'b-unknown';
 }
 function detectWorkType(text){
-  const t = text.toLowerCase();
-  if (/\bhybrid\b/.test(t))   return 'Hybrid';
-  if (/\bremote\b/.test(t))   return 'Remote';
-  if (/\bon.?site\b/.test(t)) return 'On-site';
+  const t=text.toLowerCase();
+  if(/\bhybrid\b/.test(t))   return 'Hybrid';
+  if(/\bremote\b/.test(t))   return 'Remote';
+  if(/\bon.?site\b/.test(t)) return 'On-site';
   return 'Not specified';
 }
 
-// ── LinkedIn ─────────────────────────────────────────────────────────────────
-async function fetchLinkedIn(keywords, location){
-  const target = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search'
-    + `?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&start=0`;
-  const resp = await fetch(CORS + encodeURIComponent(target));
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+async function fetchLinkedIn(keywords,location){
+  const target='https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search'
+    +`?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&start=0`;
+  const resp=await fetch(CORS+encodeURIComponent(target));
+  if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.text();
 }
 
 function parseLinkedIn(html){
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const jobs = [];
-  doc.querySelectorAll('li').forEach(card => {
-    const titleEl   = card.querySelector('.base-search-card__title');
-    const companyEl = card.querySelector('.base-search-card__subtitle');
-    const locEl     = card.querySelector('.job-search-card__location');
-    const linkEl    = card.querySelector('a.base-card__full-link');
-    const timeEl    = card.querySelector('time');
-    const wtEl      = card.querySelector('.job-search-card__workplace-type');
-    if (!titleEl) return;
-    const workType = wtEl ? detectWorkType(wtEl.textContent) : detectWorkType(card.textContent);
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  const jobs=[];
+  doc.querySelectorAll('li').forEach(card=>{
+    const titleEl  =card.querySelector('.base-search-card__title');
+    const companyEl=card.querySelector('.base-search-card__subtitle');
+    const locEl    =card.querySelector('.job-search-card__location');
+    const linkEl   =card.querySelector('a.base-card__full-link');
+    const timeEl   =card.querySelector('time');
+    const wtEl     =card.querySelector('.job-search-card__workplace-type');
+    if(!titleEl) return;
+    const workType=wtEl?detectWorkType(wtEl.textContent):detectWorkType(card.textContent);
     jobs.push({
-      title:    titleEl.textContent.trim(),
-      company:  companyEl ? companyEl.textContent.trim() : '',
-      location: locEl ? locEl.textContent.trim() : LOCATION,
-      url:      linkEl ? linkEl.href.split('?')[0] : '',
-      posted:   timeEl ? (timeEl.textContent.trim() || timeEl.getAttribute('datetime') || '') : '',
+      title:   titleEl.textContent.trim(),
+      company: companyEl?companyEl.textContent.trim():'',
+      location:locEl?locEl.textContent.trim():LOCATION,
+      url:     linkEl?linkEl.href.split('?')[0]:'',
+      posted:  timeEl?(timeEl.textContent.trim()||timeEl.getAttribute('datetime')||''):'',
       workType,
     });
   });
@@ -136,221 +144,89 @@ function parseLinkedIn(html){
 }
 
 function dedupe(jobs){
-  const seen = new Set();
-  return jobs.filter(j => {
-    const k = j.title.toLowerCase().replace(/\s+/g,' ') + '|' + j.company.toLowerCase().replace(/\s+/g,' ');
-    if (seen.has(k)) return false;
+  const seen=new Set();
+  return jobs.filter(j=>{
+    const k=j.title.toLowerCase().replace(/\s+/g,' ')+'|'+j.company.toLowerCase().replace(/\s+/g,' ');
+    if(seen.has(k)) return false;
     seen.add(k); return true;
   });
 }
 
-// ── Render ───────────────────────────────────────────────────────────────────
 function renderTable(jobs){
-  if (!jobs.length){
-    document.getElementById('table-wrap').innerHTML = '<p class="empty">No results yet.</p>';
+  if(!jobs.length){
+    document.getElementById('table-wrap').innerHTML='<p class="empty">No results yet.</p>';
     return;
   }
-  const hybridJobs = jobs.filter(j => j.workType === 'Hybrid');
-  const otherJobs  = jobs.filter(j => j.workType !== 'Hybrid');
+  const hybridJobs=jobs.filter(j=>j.workType==='Hybrid');
+  const otherJobs =jobs.filter(j=>j.workType!=='Hybrid');
 
   function row(j){
-    const cls = j.workType === 'Hybrid' ? ' class="row-hybrid"' : '';
+    const cls=j.workType==='Hybrid'?' class="row-hybrid"':'';
     return `<tr${cls}>
       <td><span class="badge ${badgeClass(j.workType)}">${esc(j.workType)}</span></td>
-      <td>${j.url ? `<a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" class="job-link">${esc(j.title)}</a>` : esc(j.title)}</td>
-      <td class="company">${esc(j.company)}</td>
-      <td class="loc">${esc(j.location)}</td>
-      <td class="${postedClass(j.posted)}">${esc(j.posted)}</td>
+      <td>${j.url?`<a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" class="job-link">${esc(j.title)}</a>`:esc(j.title)}
+        <span class="job-meta">${esc(j.company)}</span></td>
+      <td class="company col-company">${esc(j.company)}</td>
+      <td class="loc col-loc">${esc(j.location)}</td>
+      <td class="${postedClass(j.posted)} col-posted">${esc(j.posted)}</td>
     </tr>`;
   }
 
-  let tbody = '';
-  if (hybridJobs.length){
-    tbody += `<tr class="section-divider"><td colspan="5">&#9670; Hybrid — ${hybridJobs.length} role${hybridJobs.length>1?'s':''}</td></tr>`;
-    tbody += hybridJobs.map(row).join('');
+  let tbody='';
+  if(hybridJobs.length){
+    tbody+=`<tr class="section-divider"><td colspan="5">&#9670; Hybrid — ${hybridJobs.length} role${hybridJobs.length>1?'s':''}</td></tr>`;
+    tbody+=hybridJobs.map(row).join('');
   }
-  if (otherJobs.length){
-    if (hybridJobs.length)
-      tbody += `<tr class="section-divider"><td colspan="5">Other — ${otherJobs.length} role${otherJobs.length>1?'s':''}</td></tr>`;
-    tbody += otherJobs.map(row).join('');
+  if(otherJobs.length){
+    if(hybridJobs.length)
+      tbody+=`<tr class="section-divider"><td colspan="5">Other — ${otherJobs.length} role${otherJobs.length>1?'s':''}</td></tr>`;
+    tbody+=otherJobs.map(row).join('');
   }
 
-  document.getElementById('table-wrap').innerHTML = `
+  document.getElementById('table-wrap').innerHTML=`
     <table>
       <thead><tr>
-        <th>Work Type</th><th>Job Title</th><th>Company</th><th>Location</th><th>Posted</th>
+        <th>Work Type</th>
+        <th>Job Title</th>
+        <th class="col-company">Company</th>
+        <th class="col-loc">Location</th>
+        <th class="col-posted">Posted</th>
       </tr></thead>
       <tbody>${tbody}</tbody>
     </table>`;
 }
 
-// ── Search ────────────────────────────────────────────────────────────────────
 async function runSearch(){
-  const btnSearch = document.getElementById('btn-search');
-  const btnSend   = document.getElementById('btn-send');
-  btnSearch.disabled = true;
-  btnSearch.textContent = '⏳ Searching…';
-  btnSend.disabled = true;
-  document.getElementById('count-badge').style.display = 'none';
-  allJobs = [];
+  const btn=document.getElementById('btn-search');
+  btn.disabled=true;
+  btn.textContent='⏳ Searching…';
+  document.getElementById('count-badge').style.display='none';
+  allJobs=[];
 
-  for (let i = 0; i < LI_QUERIES.length; i++){
+  for(let i=0;i<LI_QUERIES.length;i++){
     setStatus(`[${i+1}/${LI_QUERIES.length}] ${LI_QUERIES[i].substring(0,70)}…`);
-    try {
-      const html = await fetchLinkedIn(LI_QUERIES[i], LOCATION);
+    try{
+      const html=await fetchLinkedIn(LI_QUERIES[i],LOCATION);
       allJobs.push(...parseLinkedIn(html));
-    } catch(e){
+    }catch(e){
       setStatus(`[${i+1}] ⚠ ${e.message}`);
       console.error(e);
     }
-    if (i < LI_QUERIES.length - 1) await sleep(900);
+    if(i<LI_QUERIES.length-1) await sleep(900);
   }
 
-  allJobs = dedupe(allJobs);
-  allJobs.sort((a, b) => workTypePriority(a.workType) - workTypePriority(b.workType));
+  allJobs=dedupe(allJobs);
+  allJobs.sort((a,b)=>workTypePriority(a.workType)-workTypePriority(b.workType));
   renderTable(allJobs);
 
-  const badge = document.getElementById('count-badge');
-  badge.textContent = `${allJobs.length} roles found`;
-  badge.style.display = 'inline-block';
+  const badge=document.getElementById('count-badge');
+  badge.textContent=`${allJobs.length} roles found`;
+  badge.style.display='inline-block';
 
-  const hybridCount = allJobs.filter(j => j.workType === 'Hybrid').length;
+  const hybridCount=allJobs.filter(j=>j.workType==='Hybrid').length;
   setStatus(`Done — ${allJobs.length} unique roles (${hybridCount} hybrid). Hybrid listed first.`);
-
-  btnSearch.disabled = false;
-  btnSearch.textContent = '🔍 Search LinkedIn';
-  if (allJobs.length) btnSend.disabled = false;
-}
-
-// ── Gmail Draft ───────────────────────────────────────────────────────────────
-const GMAIL_CLIENT_ID = '980009407381-047vhj5e3qs6i87gemetgcbrdo4n6o5r.apps.googleusercontent.com';
-let _tokenClient = null;
-let _gisReady    = false;
-
-function loadGIS(){
-  return new Promise(resolve => {
-    if (_gisReady){ resolve(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.async = true;
-    s.onload = () => { _gisReady = true; resolve(); };
-    document.head.appendChild(s);
-  });
-}
-
-function toBase64Url(str){
-  const bytes = new TextEncoder().encode(str);
-  let bin = '';
-  bytes.forEach(b => bin += String.fromCharCode(b));
-  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
-
-function buildHtmlEmail(jobs){
-  const today = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  const wtStyle = wt =>
-    wt==='Hybrid'  ? 'background:#e6faf4;color:#059669'  :
-    wt==='Remote'  ? 'background:#eef0ff;color:#4f46e5'  :
-    wt==='On-site' ? 'background:#f1f5f9;color:#64748b'  :
-                     'background:#f8fafc;color:#94a3b8';
-  const postedColor = p => {
-    if (!p) return '#94a3b8';
-    if (/today|\d+\s*(min|hour)/i.test(p)||/^[1-9]\s*day/i.test(p)||/1\s*week/i.test(p)) return '#059669';
-    if (/[2-4]\s*week/i.test(p)) return '#d97706';
-    return '#94a3b8';
-  };
-  const rows = jobs.map(j => `
-    <tr>
-      <td style="padding:9px 12px;border-bottom:1px solid #eee">
-        <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;${wtStyle(j.workType)}">${j.workType}</span>
-      </td>
-      <td style="padding:9px 12px;border-bottom:1px solid #eee;font-weight:600">
-        ${j.url ? `<a href="${j.url}" style="color:#0a66c2;text-decoration:none">${j.title}</a>` : j.title}
-      </td>
-      <td style="padding:9px 12px;border-bottom:1px solid #eee;color:#555">${j.company}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid #eee;color:#777;font-size:12px">${j.location}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid #eee;font-size:12px;color:${postedColor(j.posted)}">${j.posted||'—'}</td>
-    </tr>`).join('');
-
-  return `<html><body style="font-family:Arial,sans-serif;color:#333;max-width:900px;margin:auto">
-<div style="background:#0a66c2;padding:20px 24px;border-radius:8px 8px 0 0">
-  <h2 style="color:#fff;margin:0;font-size:19px">&#128269; LinkedIn Job Digest</h2>
-  <p style="color:rgba(255,255,255,.75);margin:5px 0 0;font-size:12px">Senior Implementation · TAM · CX · Enablement · Tel Aviv · ${today}</p>
-</div>
-<table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #ddd;border-top:none">
-  <thead><tr style="background:#f0f4f8">
-    <th style="padding:9px 12px;text-align:left;color:#0a66c2;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Work Type</th>
-    <th style="padding:9px 12px;text-align:left;color:#0a66c2;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Title</th>
-    <th style="padding:9px 12px;text-align:left;color:#0a66c2;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Company</th>
-    <th style="padding:9px 12px;text-align:left;color:#0a66c2;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Location</th>
-    <th style="padding:9px 12px;text-align:left;color:#0a66c2;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Posted</th>
-  </tr></thead>
-  <tbody>${rows}</tbody>
-</table>
-<p style="font-size:11px;color:#94a3b8;padding:12px;border:1px solid #ddd;border-top:none;border-radius:0 0 8px 8px;margin:0">
-  ${jobs.length} roles · Hybrid first · ${today}
-</p>
-</body></html>`;
-}
-
-async function createGmailDraft(){
-  if (!allJobs.length) return;
-  const btn = document.getElementById('btn-send');
-  btn.disabled = true;
-  btn.textContent = '⏳ Authorising…';
-  setStatus('Opening Google sign-in…');
-  await loadGIS();
-
-  _tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GMAIL_CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/gmail.compose',
-    callback: async (resp) => {
-      const b = document.getElementById('btn-send');
-      b.disabled = false;
-      b.textContent = '✉ Create Gmail Draft';
-      if (resp.error){
-        setStatus('⚠ Sign-in failed: ' + resp.error);
-        return;
-      }
-      await _doCreateDraft(resp.access_token);
-    },
-    error_callback: () => {
-      const b = document.getElementById('btn-send');
-      b.disabled = false;
-      b.textContent = '✉ Create Gmail Draft';
-      setStatus('⚠ Sign-in cancelled.');
-    }
-  });
-
-  // No prompt option — shows popup if needed, silent if already authorised
-  _tokenClient.requestAccessToken();
-}
-
-async function _doCreateDraft(token){
-  const today   = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  const subject = `LinkedIn Job Digest — Tel Aviv · ${today}`;
-  const mime    = [
-    'From: ' + RECIPIENT,
-    'To: '   + RECIPIENT,
-    'Subject: ' + subject,
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=UTF-8',
-    '',
-    buildHtmlEmail(allJobs)
-  ].join('\r\n');
-
-  setStatus('Creating draft…');
-  const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: { raw: toBase64Url(mime) } })
-  });
-
-  if (resp.ok){
-    setStatus('✓ Draft saved — open Gmail Drafts to review and send.');
-  } else {
-    const err = await resp.json().catch(()=>({}));
-    setStatus('⚠ Draft failed: ' + (err.error?.message || resp.status));
-  }
+  btn.disabled=false;
+  btn.textContent='🔍 Search LinkedIn';
 }
 </script>
 </body>
