@@ -47,6 +47,8 @@
     .job-link{color:#e2e8f0;font-weight:600;text-decoration:none;line-height:1.35}
     .job-link:hover{color:#6ee7c5;text-decoration:underline}
     .col-company{color:rgba(255,255,255,.6)}
+    .company-logo{width:22px;height:22px;border-radius:4px;object-fit:contain;vertical-align:middle;margin-right:7px;background:#fff;flex-shrink:0}
+    .company-cell{display:flex;align-items:center}
     .col-loc{color:rgba(255,255,255,.38);font-size:12px}
     .fresh{color:#6ee7c5;font-size:12px}
     .recent{color:#f59e0b;font-size:12px}
@@ -237,10 +239,12 @@ function parseLinkedIn(html, forcedWorkType){
     const linkEl    = card.querySelector('a.base-card__full-link');
     const timeEl    = card.querySelector('time');
     const wtEl      = card.querySelector('.job-search-card__workplace-type');
+    const imgEl     = card.querySelector('img[data-delayed-url]') || card.querySelector('.artdeco-entity-image');
     if(!titleEl) return;
-    // Use forced work type from f_WT filter when available; fall back to HTML parsing
     const workType = forcedWorkType
       || (wtEl ? detectWorkType(wtEl.textContent) : detectWorkType(card.textContent));
+    const rawLogo = imgEl ? (imgEl.getAttribute('data-delayed-url') || imgEl.getAttribute('src') || '') : '';
+    const logo = rawLogo.startsWith('data:') ? '' : rawLogo;
     jobs.push({
       title:    titleEl.textContent.trim(),
       company:  companyEl ? companyEl.textContent.trim() : '',
@@ -248,6 +252,7 @@ function parseLinkedIn(html, forcedWorkType){
       url:      linkEl ? linkEl.href.split('?')[0].replace(/[^a-zA-Z0-9/_-]+$/,'') : '',
       posted:   timeEl ? (timeEl.textContent.trim() || timeEl.getAttribute('datetime') || '') : '',
       workType,
+      logo,
     });
   });
   return jobs;
@@ -278,8 +283,11 @@ function renderTable(jobs){
     const titleCell = j.url
       ? `<a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" class="job-link">${esc(j.title)}</a>`
       : esc(j.title);
+    const logoImg = j.logo
+      ? `<img src="${esc(j.logo)}" class="company-logo" alt="" loading="lazy" onerror="this.style.display='none'">`
+      : '';
     const metaParts = [
-      j.company  ? `<span class="meta-company">${esc(j.company)}</span>` : '',
+      j.company  ? `<span class="meta-company">${logoImg}${esc(j.company)}</span>` : '',
       j.location ? `<span class="meta-loc">${esc(j.location)}</span>` : '',
       j.posted   ? `<span class="meta-posted ${postedClass(j.posted)}">${esc(j.posted)}</span>` : '',
     ].filter(Boolean).join(' <span style="opacity:.3">·</span> ');
@@ -288,7 +296,7 @@ function renderTable(jobs){
     return `<tr${cls}>
       <td><span class="badge ${badgeClass(j.workType)}">${esc(j.workType)}</span></td>
       <td>${titleCell}<span class="job-meta">${metaParts}</span></td>
-      <td class="col-company">${esc(j.company)}</td>
+      <td class="col-company"><span class="company-cell">${logoImg}${esc(j.company)}</span></td>
       <td class="col-loc">${esc(j.location)}</td>
       <td class="${postedClass(j.posted)} col-posted">${esc(j.posted)}</td>
       <td class="col-dismiss"><button class="btn-dismiss" ${dismissData} onclick="openModal(this.dataset.title,this.dataset.company)" title="Not interested">✕</button></td>
