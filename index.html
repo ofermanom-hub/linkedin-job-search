@@ -172,11 +172,29 @@ function parseLinkedIn(html){
 
 // ── Indeed RSS fetch + parse ─────────────────────────────────────────────────
 async function fetchIndeedRSS(keywords, location){
-  const target = 'https://www.indeed.com/rss'
+  const target = 'https://il.indeed.com/rss'
     + `?q=${encodeURIComponent(keywords)}&l=${encodeURIComponent(location)}&sort=date&fromage=30`;
-  const resp = await fetch(CORS + encodeURIComponent(target));
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.text();
+
+  // Try corsproxy.io first, fall back to allorigins.win
+  const attempts = [
+    async () => {
+      const r = await fetch(CORS + encodeURIComponent(target));
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.text();
+    },
+    async () => {
+      const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(target));
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      if (!j.contents) throw new Error('empty response');
+      return j.contents;
+    },
+  ];
+
+  for (const attempt of attempts) {
+    try { return await attempt(); } catch(e) { /* try next */ }
+  }
+  throw new Error('Indeed blocked (anti-bot)');
 }
 
 function parseIndeedRSS(xml){
@@ -313,17 +331,20 @@ async function runSearch(){
   await sleep(600);
 
   // ── Indeed ───────────────────────────────────────────────────────────────
+  let indeedOk = false;
   for (let i = 0; i < IN_QUERIES.length; i++){
     setStatus(`Indeed [${i+1}/${IN_QUERIES.length}] ${IN_QUERIES[i].substring(0,65)}…`);
     try {
       const xml = await fetchIndeedRSS(IN_QUERIES[i], LOCATION);
-      allJobs.push(...parseIndeedRSS(xml));
+      const found = parseIndeedRSS(xml);
+      allJobs.push(...found);
+      if (found.length) indeedOk = true;
     } catch(e){
-      setStatus(`Indeed [${i+1}] ⚠ ${e.message}`);
-      console.error('Indeed error:', e);
+      console.warn('Indeed skipped:', e.message);
     }
     if (i < IN_QUERIES.length - 1) await sleep(900);
   }
+  if (!indeedOk) console.info('Indeed returned no results (likely blocked) — LinkedIn only.');
 
   allJobs = dedupe(allJobs);
   allJobs.sort((a, b) => workTypePriority(a.workType) - workTypePriority(b.workType));
@@ -337,7 +358,8 @@ async function runSearch(){
   const hybridCount = allJobs.filter(j => j.workType === 'Hybrid').length;
   const liCount = allJobs.filter(j => j.source === 'LinkedIn').length;
   const inCount = allJobs.filter(j => j.source === 'Indeed').length;
-  setStatus(`Done — ${allJobs.length} unique roles (${hybridCount} hybrid) · LinkedIn: ${liCount}  Indeed: ${inCount}`);
+  const indeedNote = inCount ? `Indeed: ${inCount}` : 'Indeed: blocked';
+  setStatus(`Done — ${allJobs.length} unique roles (${hybridCount} hybrid) · LinkedIn: ${liCount} · ${indeedNote}`);
 
   btnSearch.disabled = false;
   btnSearch.textContent = '🔍 Search LinkedIn + Indeed';
