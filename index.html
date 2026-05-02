@@ -102,9 +102,10 @@ const LOCATION = 'Tel Aviv, Israel';
 const CORS     = 'https://corsproxy.io/?';
 
 const LI_QUERIES = [
-  'Senior Implementation Manager OR Implementation Manager OR Senior Implementation Engineer OR Solution Implementation Manager',
-  'Senior Technical Account Manager OR Technical Account Manager OR Senior TAM',
-  'Senior Onboarding Engineer OR Senior CX Engineer OR Enablement Manager OR Senior Enablement Manager OR Enablement Lead OR Senior Consultant',
+  'Senior Implementation Manager OR Implementation Manager OR Senior Implementation Engineer OR Solution Implementation Manager -"Program Manager"',
+  'Senior Technical Account Manager OR Technical Account Manager OR Senior TAM -"Program Manager"',
+  'Senior Onboarding Engineer OR Senior CX Engineer OR Enablement Manager OR Senior Enablement Manager OR Enablement Lead OR Senior Consultant -"Program Manager"',
+  'Partner Manager OR Channel Partner Manager OR Alliance Manager OR Partner Success Manager OR Partner Development Manager OR Senior Partner Manager',
 ];
 
 let allJobs = [];
@@ -160,6 +161,10 @@ function parseLinkedIn(html){
     });
   });
   return jobs;
+}
+
+function filterRelevant(jobs){
+  return jobs.filter(j => !/program manager/i.test(j.title));
 }
 
 function dedupe(jobs){
@@ -242,7 +247,7 @@ async function runSearch(){
     if(i < LI_QUERIES.length - 1) await sleep(900);
   }
 
-  allJobs = dedupe(allJobs);
+  allJobs = filterRelevant(dedupe(allJobs));
   allJobs.sort((a,b) => workTypePriority(a.workType) - workTypePriority(b.workType));
   renderTable(allJobs);
 
