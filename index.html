@@ -18,7 +18,14 @@
     .btn-search:not(:disabled):hover{background:#0a5442;transform:translateY(-1px)}
     .count{background:rgba(110,231,197,.15);color:#6ee7c5;font-size:12px;font-weight:700;padding:3px 11px;border-radius:20px;display:none}
 
-    .status{font-size:11px;color:rgba(255,255,255,.3);font-family:monospace;min-height:15px;margin-bottom:16px}
+    .status{font-size:11px;color:rgba(255,255,255,.3);font-family:monospace;min-height:15px;margin-bottom:10px}
+
+    /* Filter chips */
+    .filters-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+    .filters-bar:empty{margin-bottom:0}
+    .filter-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#fca5a5;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+    .filter-chip button{background:none;border:none;color:#fca5a5;cursor:pointer;font-size:13px;line-height:1;padding:0;opacity:.7}
+    .filter-chip button:hover{opacity:1}
 
     .table-wrap{border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.07)}
     table{width:100%;border-collapse:collapse;background:#1a2d42}
@@ -28,7 +35,6 @@
     tr:last-child td{border-bottom:none}
     tbody tr:hover td{background:rgba(255,255,255,.025)}
 
-    /* Badges */
     .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;letter-spacing:.02em}
     .b-hybrid{background:rgba(110,231,197,.15);color:#6ee7c5}
     .b-remote{background:rgba(165,180,252,.15);color:#a5b4fc}
@@ -46,13 +52,29 @@
     .recent{color:#f59e0b;font-size:12px}
     .old{color:#475569;font-size:12px}
     .empty{text-align:center;padding:60px 20px;color:rgba(255,255,255,.2);font-size:14px}
-
     tr.section-divider td{padding:3px 13px;background:rgba(255,255,255,.03);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.18);border-bottom:1px solid rgba(255,255,255,.05)}
 
-    /* Desktop: hide stacked meta, show separate columns */
+    /* Dismiss button */
+    .col-dismiss{width:1px;white-space:nowrap;vertical-align:middle;padding-left:4px}
+    .btn-dismiss{background:none;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.25);border-radius:5px;padding:4px 7px;font-size:12px;cursor:pointer;transition:all .15s;line-height:1}
+    .btn-dismiss:hover{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#f87171}
+
+    /* Modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+    .modal-card{background:#1a2d42;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:24px;max-width:420px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+    .modal-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.35);margin-bottom:4px}
+    .modal-job{font-size:13px;color:#6ee7c5;font-weight:600;margin-bottom:18px;line-height:1.4}
+    .modal-hint{font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px}
+    .filter-input{width:100%;background:#0d1b2a;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 12px;color:#e2e8f0;font-size:14px;font-family:inherit;outline:none;margin-bottom:18px}
+    .filter-input:focus{border-color:#6ee7c5;box-shadow:0 0 0 2px rgba(110,231,197,.1)}
+    .modal-actions{display:flex;gap:10px}
+    .btn-confirm{background:#0F6E56;color:#fff;flex:1}
+    .btn-confirm:hover{background:#0a5442}
+    .btn-cancel-modal{background:rgba(255,255,255,.07);color:rgba(255,255,255,.55);flex:1}
+    .btn-cancel-modal:hover{background:rgba(255,255,255,.12);color:#e2e8f0}
+
     .job-meta{display:none}
 
-    /* ── Mobile (iPhone 16 = 393px) ───────────────────────────────────────── */
     @media(max-width:480px){
       .page{padding:20px 12px}
       h1{font-size:19px}
@@ -60,41 +82,46 @@
       .btn{padding:9px 18px;font-size:13px;width:100%}
       .actions{flex-direction:column;align-items:stretch}
       .count{align-self:flex-start}
-
-      /* Collapse to 2 columns: badge + title/meta */
       .col-company,.col-loc,.col-posted{display:none}
-
       table{min-width:0}
-      th{padding:8px 10px;font-size:10px}
-      td{padding:9px 10px;font-size:13px}
-
-      /* Work type cell: pin width, center badge vertically */
-      td:first-child{width:1px;white-space:nowrap;padding-right:6px;vertical-align:middle}
-      th:first-child{width:1px;white-space:nowrap}
-
+      th{padding:8px 8px;font-size:10px}
+      td{padding:9px 8px;font-size:13px}
+      td:first-child{width:1px;white-space:nowrap;padding-right:4px;vertical-align:middle}
       .badge{font-size:10px;padding:3px 7px}
-
-      /* Show all info stacked under title */
       .job-meta{display:block;margin-top:4px;color:rgba(255,255,255,.42);font-size:11px;line-height:1.5;font-weight:400}
       .job-meta .meta-company{font-weight:600;color:rgba(255,255,255,.6)}
-      .job-meta .meta-loc{color:rgba(255,255,255,.35)}
-      .job-meta .meta-posted{}
-
-      tr.section-divider td{padding:3px 10px}
+      .col-dismiss{padding-left:4px;vertical-align:middle}
+      tr.section-divider td{padding:3px 8px}
     }
   </style>
 </head>
 <body>
 <div class="page">
   <h1>LinkedIn Job Digest</h1>
-  <p class="subtitle">Senior Implementation · TAM · CX · Enablement · Tel Aviv &amp; Center</p>
+  <p class="subtitle">Senior Implementation · TAM · CX · Enablement · Partners · Tel Aviv &amp; Center</p>
 
   <div class="actions">
     <button class="btn btn-search" id="btn-search" onclick="runSearch()">&#128269; Search LinkedIn</button>
     <span class="count" id="count-badge"></span>
   </div>
   <div class="status" id="status">Tap "Search LinkedIn" to fetch the latest openings.</div>
+  <div class="filters-bar" id="filters-bar"></div>
   <div class="table-wrap" id="table-wrap"></div>
+</div>
+
+<!-- Filter modal -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="handleOverlayClick(event)">
+  <div class="modal-card">
+    <p class="modal-label">Not interested in</p>
+    <p class="modal-job" id="modal-job"></p>
+    <p class="modal-hint">Type words to filter out (comma-separated). Matching jobs will be hidden.</p>
+    <input type="text" class="filter-input" id="filter-input" placeholder="e.g. Amdocs, ERP, Relocation"
+      onkeydown="if(event.key==='Enter') confirmFilter()">
+    <div class="modal-actions">
+      <button class="btn btn-confirm" onclick="confirmFilter()">Add Filter</button>
+      <button class="btn btn-cancel-modal" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -108,7 +135,8 @@ const LI_QUERIES = [
   'Partner Manager OR Channel Partner Manager OR Alliance Manager OR Partner Success Manager OR Partner Development Manager OR Senior Partner Manager',
 ];
 
-let allJobs = [];
+let allJobs  = [];
+let blocklist = JSON.parse(localStorage.getItem('job-blocklist') || '[]');
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function setStatus(msg){ document.getElementById('status').textContent = msg; }
@@ -131,6 +159,58 @@ function detectWorkType(text){
   return 'Not specified';
 }
 
+// ── Blocklist ─────────────────────────────────────────────────────────────────
+function saveBlocklist(){ localStorage.setItem('job-blocklist', JSON.stringify(blocklist)); }
+
+function isBlocked(job){
+  return blocklist.some(w =>
+    job.title.toLowerCase().includes(w) || job.company.toLowerCase().includes(w)
+  );
+}
+
+function getVisibleJobs(){
+  return allJobs.filter(j => !isBlocked(j));
+}
+
+function renderFiltersBar(){
+  const bar = document.getElementById('filters-bar');
+  if(!blocklist.length){ bar.innerHTML=''; return; }
+  bar.innerHTML = blocklist.map((w,i) =>
+    `<span class="filter-chip">${esc(w)}<button onclick="removeFilter(${i})" title="Remove filter">×</button></span>`
+  ).join('');
+}
+
+function removeFilter(i){
+  blocklist.splice(i,1);
+  saveBlocklist();
+  renderFiltersBar();
+  renderTable(getVisibleJobs());
+  updateBadge(getVisibleJobs());
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openModal(title, company){
+  document.getElementById('modal-job').textContent = title + (company ? ' · ' + company : '');
+  document.getElementById('filter-input').value = '';
+  document.getElementById('modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('filter-input').focus(), 50);
+}
+function closeModal(){ document.getElementById('modal').style.display = 'none'; }
+function handleOverlayClick(e){ if(e.target===document.getElementById('modal')) closeModal(); }
+
+function confirmFilter(){
+  const raw = document.getElementById('filter-input').value.trim();
+  if(!raw){ closeModal(); return; }
+  const words = raw.split(/[,]+/).map(w=>w.trim().toLowerCase()).filter(Boolean);
+  words.forEach(w=>{ if(w && !blocklist.includes(w)) blocklist.push(w); });
+  saveBlocklist();
+  closeModal();
+  renderFiltersBar();
+  renderTable(getVisibleJobs());
+  updateBadge(getVisibleJobs());
+}
+
+// ── LinkedIn ──────────────────────────────────────────────────────────────────
 async function fetchLinkedIn(keywords, location){
   const target = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search'
     + `?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&start=0`;
@@ -163,79 +243,87 @@ function parseLinkedIn(html){
   return jobs;
 }
 
-function filterRelevant(jobs){
-  return jobs.filter(j => !/program manager/i.test(j.title));
-}
+function filterRelevant(jobs){ return jobs.filter(j => !/program manager/i.test(j.title)); }
 
 function dedupe(jobs){
   const seen = new Set();
   return jobs.filter(j => {
-    const k = j.title.toLowerCase().replace(/\s+/g,' ') + '|' + j.company.toLowerCase().replace(/\s+/g,' ');
+    const k = j.title.toLowerCase().replace(/\s+/g,' ')+'|'+j.company.toLowerCase().replace(/\s+/g,' ');
     if(seen.has(k)) return false;
     seen.add(k); return true;
   });
 }
 
+// ── Render ────────────────────────────────────────────────────────────────────
 function renderTable(jobs){
   if(!jobs.length){
-    document.getElementById('table-wrap').innerHTML = '<p class="empty">No results yet.</p>';
+    document.getElementById('table-wrap').innerHTML='<p class="empty">No results — try clearing some filters.</p>';
     return;
   }
-  const hybridJobs = jobs.filter(j => j.workType === 'Hybrid');
-  const otherJobs  = jobs.filter(j => j.workType !== 'Hybrid');
+  const hybridJobs = jobs.filter(j => j.workType==='Hybrid');
+  const otherJobs  = jobs.filter(j => j.workType!=='Hybrid');
 
   function row(j){
-    const cls = j.workType === 'Hybrid' ? ' class="row-hybrid"' : '';
+    const cls = j.workType==='Hybrid' ? ' class="row-hybrid"' : '';
     const titleCell = j.url
       ? `<a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" class="job-link">${esc(j.title)}</a>`
       : esc(j.title);
     const metaParts = [
-      j.company ? `<span class="meta-company">${esc(j.company)}</span>` : '',
+      j.company  ? `<span class="meta-company">${esc(j.company)}</span>` : '',
       j.location ? `<span class="meta-loc">${esc(j.location)}</span>` : '',
       j.posted   ? `<span class="meta-posted ${postedClass(j.posted)}">${esc(j.posted)}</span>` : '',
     ].filter(Boolean).join(' <span style="opacity:.3">·</span> ');
 
+    const dismissData = `data-title="${esc(j.title)}" data-company="${esc(j.company)}"`;
     return `<tr${cls}>
       <td><span class="badge ${badgeClass(j.workType)}">${esc(j.workType)}</span></td>
       <td>${titleCell}<span class="job-meta">${metaParts}</span></td>
       <td class="col-company">${esc(j.company)}</td>
       <td class="col-loc">${esc(j.location)}</td>
       <td class="${postedClass(j.posted)} col-posted">${esc(j.posted)}</td>
+      <td class="col-dismiss"><button class="btn-dismiss" ${dismissData} onclick="openModal(this.dataset.title,this.dataset.company)" title="Not interested">✕</button></td>
     </tr>`;
   }
 
-  let tbody = '';
+  let tbody='';
   if(hybridJobs.length){
-    tbody += `<tr class="section-divider"><td colspan="5">&#9670; Hybrid — ${hybridJobs.length} role${hybridJobs.length>1?'s':''}</td></tr>`;
-    tbody += hybridJobs.map(row).join('');
+    tbody+=`<tr class="section-divider"><td colspan="6">&#9670; Hybrid — ${hybridJobs.length} role${hybridJobs.length>1?'s':''}</td></tr>`;
+    tbody+=hybridJobs.map(row).join('');
   }
   if(otherJobs.length){
     if(hybridJobs.length)
-      tbody += `<tr class="section-divider"><td colspan="5">Other — ${otherJobs.length} role${otherJobs.length>1?'s':''}</td></tr>`;
-    tbody += otherJobs.map(row).join('');
+      tbody+=`<tr class="section-divider"><td colspan="6">Other — ${otherJobs.length} role${otherJobs.length>1?'s':''}</td></tr>`;
+    tbody+=otherJobs.map(row).join('');
   }
 
-  document.getElementById('table-wrap').innerHTML = `
+  document.getElementById('table-wrap').innerHTML=`
     <table>
       <thead><tr>
-        <th>Type</th>
-        <th>Job Title</th>
+        <th>Type</th><th>Job Title</th>
         <th class="col-company">Company</th>
         <th class="col-loc">Location</th>
         <th class="col-posted">Posted</th>
+        <th class="col-dismiss"></th>
       </tr></thead>
       <tbody>${tbody}</tbody>
     </table>`;
 }
 
+function updateBadge(jobs){
+  const badge = document.getElementById('count-badge');
+  badge.textContent = `${jobs.length} roles`;
+  badge.style.display = jobs.length ? 'inline-block' : 'none';
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
 async function runSearch(){
   const btn = document.getElementById('btn-search');
   btn.disabled = true;
   btn.textContent = '⏳ Searching…';
-  document.getElementById('count-badge').style.display = 'none';
-  allJobs = [];
+  document.getElementById('count-badge').style.display='none';
+  allJobs=[];
 
-  for(let i = 0; i < LI_QUERIES.length; i++){
+  for(let i=0; i<LI_QUERIES.length; i++){
     setStatus(`[${i+1}/${LI_QUERIES.length}] ${LI_QUERIES[i].substring(0,65)}…`);
     try{
       const html = await fetchLinkedIn(LI_QUERIES[i], LOCATION);
@@ -244,22 +332,25 @@ async function runSearch(){
       setStatus(`[${i+1}] ⚠ ${e.message}`);
       console.error(e);
     }
-    if(i < LI_QUERIES.length - 1) await sleep(900);
+    if(i<LI_QUERIES.length-1) await sleep(900);
   }
 
   allJobs = filterRelevant(dedupe(allJobs));
-  allJobs.sort((a,b) => workTypePriority(a.workType) - workTypePriority(b.workType));
-  renderTable(allJobs);
+  allJobs.sort((a,b) => workTypePriority(a.workType)-workTypePriority(b.workType));
 
-  const badge = document.getElementById('count-badge');
-  badge.textContent = `${allJobs.length} roles`;
-  badge.style.display = 'inline-block';
+  const visible = getVisibleJobs();
+  renderFiltersBar();
+  renderTable(visible);
+  updateBadge(visible);
 
-  const hybridCount = allJobs.filter(j => j.workType === 'Hybrid').length;
-  setStatus(`${allJobs.length} unique roles · ${hybridCount} hybrid · Hybrid listed first`);
-  btn.disabled = false;
-  btn.textContent = '🔍 Search LinkedIn';
+  const hybridCount = visible.filter(j=>j.workType==='Hybrid').length;
+  setStatus(`${visible.length} roles · ${hybridCount} hybrid · Hybrid first${blocklist.length?' · '+blocklist.length+' filter'+(blocklist.length>1?'s':'')+' active':''}`);
+  btn.disabled=false;
+  btn.textContent='🔍 Search LinkedIn';
 }
+
+// Init filters bar on load
+renderFiltersBar();
 </script>
 </body>
 </html>
