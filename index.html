@@ -7,28 +7,29 @@
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1b2a;color:#e2e8f0;min-height:100vh}
-    .page{max-width:1060px;margin:0 auto;padding:40px 20px}
-    h1{font-size:26px;font-weight:700;color:#6ee7c5;margin-bottom:4px}
-    .subtitle{color:rgba(255,255,255,.45);font-size:13px;margin-bottom:28px}
+    .page{max-width:1060px;margin:0 auto;padding:36px 20px}
+    h1{font-size:24px;font-weight:700;color:#6ee7c5;margin-bottom:3px}
+    .subtitle{color:rgba(255,255,255,.4);font-size:12px;margin-bottom:24px}
 
-    .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-    .btn{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border-radius:8px;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:background .15s,transform .1s;font-family:inherit}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 22px;border-radius:8px;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:background .15s,transform .1s;font-family:inherit}
     .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
     .btn-search{background:#0F6E56;color:#fff}
     .btn-search:not(:disabled):hover{background:#0a5442;transform:translateY(-1px)}
-    .count{background:rgba(110,231,197,.15);color:#6ee7c5;font-size:12px;font-weight:700;padding:3px 12px;border-radius:20px;display:none}
+    .count{background:rgba(110,231,197,.15);color:#6ee7c5;font-size:12px;font-weight:700;padding:3px 11px;border-radius:20px;display:none}
 
-    .status{font-size:12px;color:rgba(255,255,255,.35);font-family:monospace;min-height:16px;margin-bottom:18px}
+    .status{font-size:11px;color:rgba(255,255,255,.3);font-family:monospace;min-height:15px;margin-bottom:16px}
 
-    .table-wrap{border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.07);overflow-x:auto;-webkit-overflow-scrolling:touch}
-    table{width:100%;border-collapse:collapse;background:#1a2d42;min-width:480px}
+    .table-wrap{border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.07)}
+    table{width:100%;border-collapse:collapse;background:#1a2d42}
     thead tr{background:#243548}
-    th{padding:11px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6ee7c5;white-space:nowrap}
-    td{padding:10px 14px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:middle}
+    th{padding:10px 13px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6ee7c5;white-space:nowrap}
+    td{padding:10px 13px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:top}
     tr:last-child td{border-bottom:none}
     tbody tr:hover td{background:rgba(255,255,255,.025)}
 
-    .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;letter-spacing:.03em}
+    /* Badges */
+    .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;letter-spacing:.02em}
     .b-hybrid{background:rgba(110,231,197,.15);color:#6ee7c5}
     .b-remote{background:rgba(165,180,252,.15);color:#a5b4fc}
     .b-onsite{background:rgba(100,116,139,.14);color:#94a3b8}
@@ -37,40 +38,62 @@
     tr.row-hybrid td{background:rgba(110,231,197,.04)}
     tr.row-hybrid:hover td{background:rgba(110,231,197,.07)}
 
-    .job-link{color:#e2e8f0;font-weight:600;text-decoration:none}
+    .job-link{color:#e2e8f0;font-weight:600;text-decoration:none;line-height:1.35}
     .job-link:hover{color:#6ee7c5;text-decoration:underline}
-    .company{color:rgba(255,255,255,.65)}
-    .loc{color:rgba(255,255,255,.4);font-size:12px}
+    .col-company{color:rgba(255,255,255,.6)}
+    .col-loc{color:rgba(255,255,255,.38);font-size:12px}
     .fresh{color:#6ee7c5;font-size:12px}
     .recent{color:#f59e0b;font-size:12px}
     .old{color:#475569;font-size:12px}
-    .empty{text-align:center;padding:60px 20px;color:rgba(255,255,255,.25);font-size:15px}
-    tr.section-divider td{padding:3px 14px;background:rgba(255,255,255,.03);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.2);border-bottom:1px solid rgba(255,255,255,.06)}
+    .empty{text-align:center;padding:60px 20px;color:rgba(255,255,255,.2);font-size:14px}
 
-    /* Mobile */
-    @media(max-width:600px){
-      .page{padding:24px 14px}
-      h1{font-size:21px}
-      .subtitle{font-size:12px;margin-bottom:20px}
-      .btn{padding:9px 16px;font-size:13px}
-      th{padding:9px 10px;font-size:10px}
-      td{padding:9px 10px;font-size:12px}
-      .col-loc{display:none}
-      .col-posted{display:none}
-      .job-meta{display:block;color:rgba(255,255,255,.4);font-size:11px;margin-top:3px;font-weight:400}
+    tr.section-divider td{padding:3px 13px;background:rgba(255,255,255,.03);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.18);border-bottom:1px solid rgba(255,255,255,.05)}
+
+    /* Desktop: hide stacked meta, show separate columns */
+    .job-meta{display:none}
+
+    /* ── Mobile (iPhone 16 = 393px) ───────────────────────────────────────── */
+    @media(max-width:480px){
+      .page{padding:20px 12px}
+      h1{font-size:19px}
+      .subtitle{font-size:11px;margin-bottom:18px}
+      .btn{padding:9px 18px;font-size:13px;width:100%}
+      .actions{flex-direction:column;align-items:stretch}
+      .count{align-self:flex-start}
+
+      /* Collapse to 2 columns: badge + title/meta */
+      .col-company,.col-loc,.col-posted{display:none}
+
+      table{min-width:0}
+      th{padding:8px 10px;font-size:10px}
+      td{padding:9px 10px;font-size:13px}
+
+      /* Work type cell: pin width, center badge vertically */
+      td:first-child{width:1px;white-space:nowrap;padding-right:6px;vertical-align:middle}
+      th:first-child{width:1px;white-space:nowrap}
+
+      .badge{font-size:10px;padding:3px 7px}
+
+      /* Show all info stacked under title */
+      .job-meta{display:block;margin-top:4px;color:rgba(255,255,255,.42);font-size:11px;line-height:1.5;font-weight:400}
+      .job-meta .meta-company{font-weight:600;color:rgba(255,255,255,.6)}
+      .job-meta .meta-loc{color:rgba(255,255,255,.35)}
+      .job-meta .meta-posted{}
+
+      tr.section-divider td{padding:3px 10px}
     }
   </style>
 </head>
 <body>
 <div class="page">
   <h1>LinkedIn Job Digest</h1>
-  <p class="subtitle">Senior Implementation · TAM · CX · Enablement · Tel Aviv &amp; Center District</p>
+  <p class="subtitle">Senior Implementation · TAM · CX · Enablement · Tel Aviv &amp; Center</p>
 
   <div class="actions">
     <button class="btn btn-search" id="btn-search" onclick="runSearch()">&#128269; Search LinkedIn</button>
     <span class="count" id="count-badge"></span>
   </div>
-  <div class="status" id="status">Click "Search LinkedIn" to fetch the latest openings.</div>
+  <div class="status" id="status">Tap "Search LinkedIn" to fetch the latest openings.</div>
   <div class="table-wrap" id="table-wrap"></div>
 </div>
 
@@ -90,9 +113,7 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function setStatus(msg){ document.getElementById('status').textContent = msg; }
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-function workTypePriority(wt){
-  return {Hybrid:0,Remote:1,'On-site':2,'Not specified':3}[wt]??3;
-}
+function workTypePriority(wt){ return {Hybrid:0,Remote:1,'On-site':2,'Not specified':3}[wt]??3; }
 function postedClass(txt){
   if(!txt) return 'old';
   if(/today|\d+\s*(minute|hour)s?\s*ago/i.test(txt)) return 'fresh';
@@ -100,9 +121,7 @@ function postedClass(txt){
   if(/[2-4]\s*weeks?\s*ago/i.test(txt)) return 'recent';
   return 'old';
 }
-function badgeClass(wt){
-  return {Hybrid:'b-hybrid',Remote:'b-remote','On-site':'b-onsite'}[wt]||'b-unknown';
-}
+function badgeClass(wt){ return {Hybrid:'b-hybrid',Remote:'b-remote','On-site':'b-onsite'}[wt]||'b-unknown'; }
 function detectWorkType(text){
   const t=text.toLowerCase();
   if(/\bhybrid\b/.test(t))   return 'Hybrid';
@@ -111,32 +130,32 @@ function detectWorkType(text){
   return 'Not specified';
 }
 
-async function fetchLinkedIn(keywords,location){
-  const target='https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search'
-    +`?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&start=0`;
-  const resp=await fetch(CORS+encodeURIComponent(target));
+async function fetchLinkedIn(keywords, location){
+  const target = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search'
+    + `?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&start=0`;
+  const resp = await fetch(CORS + encodeURIComponent(target));
   if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.text();
 }
 
 function parseLinkedIn(html){
-  const doc=new DOMParser().parseFromString(html,'text/html');
-  const jobs=[];
-  doc.querySelectorAll('li').forEach(card=>{
-    const titleEl  =card.querySelector('.base-search-card__title');
-    const companyEl=card.querySelector('.base-search-card__subtitle');
-    const locEl    =card.querySelector('.job-search-card__location');
-    const linkEl   =card.querySelector('a.base-card__full-link');
-    const timeEl   =card.querySelector('time');
-    const wtEl     =card.querySelector('.job-search-card__workplace-type');
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const jobs = [];
+  doc.querySelectorAll('li').forEach(card => {
+    const titleEl   = card.querySelector('.base-search-card__title');
+    const companyEl = card.querySelector('.base-search-card__subtitle');
+    const locEl     = card.querySelector('.job-search-card__location');
+    const linkEl    = card.querySelector('a.base-card__full-link');
+    const timeEl    = card.querySelector('time');
+    const wtEl      = card.querySelector('.job-search-card__workplace-type');
     if(!titleEl) return;
-    const workType=wtEl?detectWorkType(wtEl.textContent):detectWorkType(card.textContent);
+    const workType = wtEl ? detectWorkType(wtEl.textContent) : detectWorkType(card.textContent);
     jobs.push({
-      title:   titleEl.textContent.trim(),
-      company: companyEl?companyEl.textContent.trim():'',
-      location:locEl?locEl.textContent.trim():LOCATION,
-      url:     linkEl?linkEl.href.split('?')[0].replace(/[^a-zA-Z0-9/_-]+$/,''):'',
-      posted:  timeEl?(timeEl.textContent.trim()||timeEl.getAttribute('datetime')||''):'',
+      title:    titleEl.textContent.trim(),
+      company:  companyEl ? companyEl.textContent.trim() : '',
+      location: locEl ? locEl.textContent.trim() : LOCATION,
+      url:      linkEl ? linkEl.href.split('?')[0].replace(/[^a-zA-Z0-9/_-]+$/,'') : '',
+      posted:   timeEl ? (timeEl.textContent.trim() || timeEl.getAttribute('datetime') || '') : '',
       workType,
     });
   });
@@ -144,9 +163,9 @@ function parseLinkedIn(html){
 }
 
 function dedupe(jobs){
-  const seen=new Set();
-  return jobs.filter(j=>{
-    const k=j.title.toLowerCase().replace(/\s+/g,' ')+'|'+j.company.toLowerCase().replace(/\s+/g,' ');
+  const seen = new Set();
+  return jobs.filter(j => {
+    const k = j.title.toLowerCase().replace(/\s+/g,' ') + '|' + j.company.toLowerCase().replace(/\s+/g,' ');
     if(seen.has(k)) return false;
     seen.add(k); return true;
   });
@@ -154,39 +173,47 @@ function dedupe(jobs){
 
 function renderTable(jobs){
   if(!jobs.length){
-    document.getElementById('table-wrap').innerHTML='<p class="empty">No results yet.</p>';
+    document.getElementById('table-wrap').innerHTML = '<p class="empty">No results yet.</p>';
     return;
   }
-  const hybridJobs=jobs.filter(j=>j.workType==='Hybrid');
-  const otherJobs =jobs.filter(j=>j.workType!=='Hybrid');
+  const hybridJobs = jobs.filter(j => j.workType === 'Hybrid');
+  const otherJobs  = jobs.filter(j => j.workType !== 'Hybrid');
 
   function row(j){
-    const cls=j.workType==='Hybrid'?' class="row-hybrid"':'';
+    const cls = j.workType === 'Hybrid' ? ' class="row-hybrid"' : '';
+    const titleCell = j.url
+      ? `<a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" class="job-link">${esc(j.title)}</a>`
+      : esc(j.title);
+    const metaParts = [
+      j.company ? `<span class="meta-company">${esc(j.company)}</span>` : '',
+      j.location ? `<span class="meta-loc">${esc(j.location)}</span>` : '',
+      j.posted   ? `<span class="meta-posted ${postedClass(j.posted)}">${esc(j.posted)}</span>` : '',
+    ].filter(Boolean).join(' <span style="opacity:.3">·</span> ');
+
     return `<tr${cls}>
       <td><span class="badge ${badgeClass(j.workType)}">${esc(j.workType)}</span></td>
-      <td>${j.url?`<a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" class="job-link">${esc(j.title)}</a>`:esc(j.title)}
-        <span class="job-meta">${esc(j.company)}</span></td>
-      <td class="company col-company">${esc(j.company)}</td>
-      <td class="loc col-loc">${esc(j.location)}</td>
+      <td>${titleCell}<span class="job-meta">${metaParts}</span></td>
+      <td class="col-company">${esc(j.company)}</td>
+      <td class="col-loc">${esc(j.location)}</td>
       <td class="${postedClass(j.posted)} col-posted">${esc(j.posted)}</td>
     </tr>`;
   }
 
-  let tbody='';
+  let tbody = '';
   if(hybridJobs.length){
-    tbody+=`<tr class="section-divider"><td colspan="5">&#9670; Hybrid — ${hybridJobs.length} role${hybridJobs.length>1?'s':''}</td></tr>`;
-    tbody+=hybridJobs.map(row).join('');
+    tbody += `<tr class="section-divider"><td colspan="5">&#9670; Hybrid — ${hybridJobs.length} role${hybridJobs.length>1?'s':''}</td></tr>`;
+    tbody += hybridJobs.map(row).join('');
   }
   if(otherJobs.length){
     if(hybridJobs.length)
-      tbody+=`<tr class="section-divider"><td colspan="5">Other — ${otherJobs.length} role${otherJobs.length>1?'s':''}</td></tr>`;
-    tbody+=otherJobs.map(row).join('');
+      tbody += `<tr class="section-divider"><td colspan="5">Other — ${otherJobs.length} role${otherJobs.length>1?'s':''}</td></tr>`;
+    tbody += otherJobs.map(row).join('');
   }
 
-  document.getElementById('table-wrap').innerHTML=`
+  document.getElementById('table-wrap').innerHTML = `
     <table>
       <thead><tr>
-        <th>Work Type</th>
+        <th>Type</th>
         <th>Job Title</th>
         <th class="col-company">Company</th>
         <th class="col-loc">Location</th>
@@ -197,36 +224,36 @@ function renderTable(jobs){
 }
 
 async function runSearch(){
-  const btn=document.getElementById('btn-search');
-  btn.disabled=true;
-  btn.textContent='⏳ Searching…';
-  document.getElementById('count-badge').style.display='none';
-  allJobs=[];
+  const btn = document.getElementById('btn-search');
+  btn.disabled = true;
+  btn.textContent = '⏳ Searching…';
+  document.getElementById('count-badge').style.display = 'none';
+  allJobs = [];
 
-  for(let i=0;i<LI_QUERIES.length;i++){
-    setStatus(`[${i+1}/${LI_QUERIES.length}] ${LI_QUERIES[i].substring(0,70)}…`);
+  for(let i = 0; i < LI_QUERIES.length; i++){
+    setStatus(`[${i+1}/${LI_QUERIES.length}] ${LI_QUERIES[i].substring(0,65)}…`);
     try{
-      const html=await fetchLinkedIn(LI_QUERIES[i],LOCATION);
+      const html = await fetchLinkedIn(LI_QUERIES[i], LOCATION);
       allJobs.push(...parseLinkedIn(html));
     }catch(e){
       setStatus(`[${i+1}] ⚠ ${e.message}`);
       console.error(e);
     }
-    if(i<LI_QUERIES.length-1) await sleep(900);
+    if(i < LI_QUERIES.length - 1) await sleep(900);
   }
 
-  allJobs=dedupe(allJobs);
-  allJobs.sort((a,b)=>workTypePriority(a.workType)-workTypePriority(b.workType));
+  allJobs = dedupe(allJobs);
+  allJobs.sort((a,b) => workTypePriority(a.workType) - workTypePriority(b.workType));
   renderTable(allJobs);
 
-  const badge=document.getElementById('count-badge');
-  badge.textContent=`${allJobs.length} roles found`;
-  badge.style.display='inline-block';
+  const badge = document.getElementById('count-badge');
+  badge.textContent = `${allJobs.length} roles`;
+  badge.style.display = 'inline-block';
 
-  const hybridCount=allJobs.filter(j=>j.workType==='Hybrid').length;
-  setStatus(`Done — ${allJobs.length} unique roles (${hybridCount} hybrid). Hybrid listed first.`);
-  btn.disabled=false;
-  btn.textContent='🔍 Search LinkedIn';
+  const hybridCount = allJobs.filter(j => j.workType === 'Hybrid').length;
+  setStatus(`${allJobs.length} unique roles · ${hybridCount} hybrid · Hybrid listed first`);
+  btn.disabled = false;
+  btn.textContent = '🔍 Search LinkedIn';
 }
 </script>
 </body>
