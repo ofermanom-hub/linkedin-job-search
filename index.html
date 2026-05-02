@@ -7,11 +7,10 @@
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1b2a;color:#e2e8f0;min-height:100vh}
-    .page{max-width:1100px;margin:0 auto;padding:40px 20px}
+    .page{max-width:1060px;margin:0 auto;padding:40px 20px}
     h1{font-size:26px;font-weight:700;color:#6ee7c5;margin-bottom:4px}
     .subtitle{color:rgba(255,255,255,.45);font-size:13px;margin-bottom:32px}
 
-    /* Buttons */
     .actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
     .btn{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border-radius:8px;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:background .15s,transform .1s;font-family:inherit}
     .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
@@ -21,10 +20,8 @@
     .btn-gmail:not(:disabled):hover{background:#004182;transform:translateY(-1px)}
     .count{background:rgba(110,231,197,.15);color:#6ee7c5;font-size:12px;font-weight:700;padding:3px 12px;border-radius:20px;display:none}
 
-    /* Status */
     .status{font-size:12px;color:rgba(255,255,255,.35);font-family:monospace;min-height:16px;margin-bottom:18px}
 
-    /* Table */
     .table-wrap{border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.07)}
     table{width:100%;border-collapse:collapse;background:#1a2d42}
     thead tr{background:#243548}
@@ -33,54 +30,41 @@
     tr:last-child td{border-bottom:none}
     tbody tr:hover td{background:rgba(255,255,255,.025)}
 
-    /* Work type badges */
     .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;letter-spacing:.03em}
     .b-hybrid{background:rgba(110,231,197,.15);color:#6ee7c5}
     .b-remote{background:rgba(165,180,252,.15);color:#a5b4fc}
     .b-onsite{background:rgba(100,116,139,.14);color:#94a3b8}
     .b-unknown{background:rgba(100,116,139,.07);color:#475569;font-weight:400}
 
-    /* Source badges */
-    .b-linkedin{background:rgba(10,102,194,.25);color:#60a5fa}
-    .b-indeed{background:rgba(245,158,11,.18);color:#fbbf24}
-
-    /* Row highlight for hybrid */
     tr.row-hybrid td{background:rgba(110,231,197,.04)}
     tr.row-hybrid:hover td{background:rgba(110,231,197,.07)}
 
-    /* Job title link */
     .job-link{color:#e2e8f0;font-weight:600;text-decoration:none}
     .job-link:hover{color:#6ee7c5;text-decoration:underline}
     .company{color:rgba(255,255,255,.65)}
     .loc{color:rgba(255,255,255,.4);font-size:12px}
-
     .fresh{color:#6ee7c5;font-size:12px}
     .recent{color:#f59e0b;font-size:12px}
     .old{color:#475569;font-size:12px}
-
     .empty{text-align:center;padding:60px 20px;color:rgba(255,255,255,.25);font-size:15px}
-
-    /* Divider between hybrid and rest */
     tr.section-divider td{padding:3px 14px;background:rgba(255,255,255,.03);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.2);border-bottom:1px solid rgba(255,255,255,.06)}
   </style>
 </head>
 <body>
 <div class="page">
-  <h1>Job Digest — LinkedIn + Indeed</h1>
+  <h1>LinkedIn Job Digest</h1>
   <p class="subtitle">Senior Implementation · TAM · CX · Enablement · Tel Aviv &amp; Center District</p>
 
   <div class="actions">
-    <button class="btn btn-search" id="btn-search" onclick="runSearch()">&#128269; Search LinkedIn + Indeed</button>
+    <button class="btn btn-search" id="btn-search" onclick="runSearch()">&#128269; Search LinkedIn</button>
     <button class="btn btn-gmail" id="btn-send" onclick="createGmailDraft()" disabled>&#9993; Create Gmail Draft</button>
     <span class="count" id="count-badge"></span>
   </div>
-  <div class="status" id="status">Click "Search LinkedIn + Indeed" to fetch the latest openings.</div>
-
+  <div class="status" id="status">Click "Search LinkedIn" to fetch the latest openings.</div>
   <div class="table-wrap" id="table-wrap"></div>
 </div>
 
 <script>
-// ── Config ───────────────────────────────────────────────────────────────────
 const RECIPIENT = 'ofer.man.om@gmail.com';
 const LOCATION  = 'Tel Aviv, Israel';
 const CORS      = 'https://corsproxy.io/?';
@@ -91,16 +75,8 @@ const LI_QUERIES = [
   'Senior Onboarding Engineer OR Senior CX Engineer OR Enablement Manager OR Senior Enablement Manager OR Enablement Lead OR Senior Consultant',
 ];
 
-const IN_QUERIES = [
-  'Senior Implementation Manager Implementation Engineer',
-  'Senior Technical Account Manager TAM Onboarding',
-  'Senior CX Engineer Enablement Manager Senior Consultant',
-];
-
-// ── State ────────────────────────────────────────────────────────────────────
 let allJobs = [];
 
-// ── Utilities ────────────────────────────────────────────────────────────────
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function setStatus(msg){ document.getElementById('status').textContent = msg; }
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
@@ -108,7 +84,6 @@ function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 function workTypePriority(wt){
   return {Hybrid:0, Remote:1, 'On-site':2, 'Not specified':3}[wt] ?? 3;
 }
-
 function postedClass(txt){
   if (!txt) return 'old';
   if (/today|\d+\s*(minute|hour)s?\s*ago/i.test(txt)) return 'fresh';
@@ -116,11 +91,9 @@ function postedClass(txt){
   if (/[2-4]\s*weeks?\s*ago/i.test(txt)) return 'recent';
   return 'old';
 }
-
 function badgeClass(wt){
   return {Hybrid:'b-hybrid', Remote:'b-remote', 'On-site':'b-onsite'}[wt] || 'b-unknown';
 }
-
 function detectWorkType(text){
   const t = text.toLowerCase();
   if (/\bhybrid\b/.test(t))   return 'Hybrid';
@@ -129,7 +102,7 @@ function detectWorkType(text){
   return 'Not specified';
 }
 
-// ── LinkedIn fetch + parse ───────────────────────────────────────────────────
+// ── LinkedIn ─────────────────────────────────────────────────────────────────
 async function fetchLinkedIn(keywords, location){
   const target = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search'
     + `?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&start=0`;
@@ -149,14 +122,7 @@ function parseLinkedIn(html){
     const timeEl    = card.querySelector('time');
     const wtEl      = card.querySelector('.job-search-card__workplace-type');
     if (!titleEl) return;
-
-    let workType = 'Not specified';
-    if (wtEl) {
-      workType = detectWorkType(wtEl.textContent);
-    } else {
-      workType = detectWorkType(card.textContent);
-    }
-
+    const workType = wtEl ? detectWorkType(wtEl.textContent) : detectWorkType(card.textContent);
     jobs.push({
       title:    titleEl.textContent.trim(),
       company:  companyEl ? companyEl.textContent.trim() : '',
@@ -164,94 +130,11 @@ function parseLinkedIn(html){
       url:      linkEl ? linkEl.href.split('?')[0] : '',
       posted:   timeEl ? (timeEl.textContent.trim() || timeEl.getAttribute('datetime') || '') : '',
       workType,
-      source:   'LinkedIn',
     });
   });
   return jobs;
 }
 
-// ── Indeed RSS fetch + parse ─────────────────────────────────────────────────
-async function fetchIndeedRSS(keywords, location){
-  const target = 'https://il.indeed.com/rss'
-    + `?q=${encodeURIComponent(keywords)}&l=${encodeURIComponent(location)}&sort=date&fromage=30`;
-
-  // Try corsproxy.io first, fall back to allorigins.win
-  const attempts = [
-    async () => {
-      const r = await fetch(CORS + encodeURIComponent(target));
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.text();
-    },
-    async () => {
-      const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(target));
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j = await r.json();
-      if (!j.contents) throw new Error('empty response');
-      return j.contents;
-    },
-  ];
-
-  for (const attempt of attempts) {
-    try { return await attempt(); } catch(e) { /* try next */ }
-  }
-  throw new Error('Indeed blocked (anti-bot)');
-}
-
-function parseIndeedRSS(xml){
-  const doc = new DOMParser().parseFromString(xml, 'text/xml');
-  // Detect parse error
-  if (doc.querySelector('parsererror')) return [];
-  const jobs = [];
-
-  doc.querySelectorAll('item').forEach(item => {
-    const rawTitle  = item.querySelector('title')?.textContent?.trim() || '';
-    const link      = item.querySelector('link')?.nextSibling?.nodeValue?.trim()
-                   || item.querySelector('guid')?.textContent?.trim() || '';
-    const desc      = item.querySelector('description')?.textContent || '';
-    const pubDate   = item.querySelector('pubDate')?.textContent || '';
-
-    if (!rawTitle) return;
-
-    // Title format: "Job Title - Company Name (Location)" or "Job Title - Company Name"
-    const dashIdx = rawTitle.lastIndexOf(' - ');
-    let jobTitle = dashIdx > 0 ? rawTitle.substring(0, dashIdx) : rawTitle;
-    let company  = dashIdx > 0 ? rawTitle.substring(dashIdx + 3) : '';
-    // Strip trailing location in parens from company: "Acme Corp (Tel Aviv)"
-    company = company.replace(/\s*\([^)]*\)\s*$/, '').trim();
-
-    // Work type from description HTML
-    const tmpDiv = document.createElement('div');
-    tmpDiv.innerHTML = desc;
-    const descText = tmpDiv.textContent || '';
-    const workType = detectWorkType(descText);
-
-    // Parse pubDate → relative string
-    let posted = '';
-    if (pubDate) {
-      try {
-        const diffDays = Math.floor((Date.now() - new Date(pubDate).getTime()) / 86400000);
-        if (diffDays <= 0)      posted = 'Today';
-        else if (diffDays === 1) posted = '1 day ago';
-        else if (diffDays < 7)  posted = `${diffDays} days ago`;
-        else if (diffDays < 14) posted = '1 week ago';
-        else                    posted = `${Math.floor(diffDays/7)} weeks ago`;
-      } catch(e) {}
-    }
-
-    if (jobTitle) jobs.push({
-      title:    jobTitle,
-      company,
-      location: LOCATION,
-      url:      link,
-      posted,
-      workType,
-      source:   'Indeed',
-    });
-  });
-  return jobs;
-}
-
-// ── Dedupe (title+company key, cross-source) ─────────────────────────────────
 function dedupe(jobs){
   const seen = new Set();
   return jobs.filter(j => {
@@ -267,17 +150,13 @@ function renderTable(jobs){
     document.getElementById('table-wrap').innerHTML = '<p class="empty">No results yet.</p>';
     return;
   }
-
   const hybridJobs = jobs.filter(j => j.workType === 'Hybrid');
   const otherJobs  = jobs.filter(j => j.workType !== 'Hybrid');
-
-  function sourceClass(s){ return s === 'LinkedIn' ? 'b-linkedin' : 'b-indeed'; }
 
   function row(j){
     const cls = j.workType === 'Hybrid' ? ' class="row-hybrid"' : '';
     return `<tr${cls}>
       <td><span class="badge ${badgeClass(j.workType)}">${esc(j.workType)}</span></td>
-      <td><span class="badge ${sourceClass(j.source)}">${esc(j.source)}</span></td>
       <td>${j.url ? `<a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" class="job-link">${esc(j.title)}</a>` : esc(j.title)}</td>
       <td class="company">${esc(j.company)}</td>
       <td class="loc">${esc(j.location)}</td>
@@ -287,25 +166,25 @@ function renderTable(jobs){
 
   let tbody = '';
   if (hybridJobs.length){
-    tbody += `<tr class="section-divider"><td colspan="6">&#9670; Hybrid — ${hybridJobs.length} role${hybridJobs.length>1?'s':''}</td></tr>`;
+    tbody += `<tr class="section-divider"><td colspan="5">&#9670; Hybrid — ${hybridJobs.length} role${hybridJobs.length>1?'s':''}</td></tr>`;
     tbody += hybridJobs.map(row).join('');
   }
   if (otherJobs.length){
     if (hybridJobs.length)
-      tbody += `<tr class="section-divider"><td colspan="6">Other — ${otherJobs.length} role${otherJobs.length>1?'s':''}</td></tr>`;
+      tbody += `<tr class="section-divider"><td colspan="5">Other — ${otherJobs.length} role${otherJobs.length>1?'s':''}</td></tr>`;
     tbody += otherJobs.map(row).join('');
   }
 
   document.getElementById('table-wrap').innerHTML = `
     <table>
       <thead><tr>
-        <th>Work Type</th><th>Source</th><th>Job Title</th><th>Company</th><th>Location</th><th>Posted</th>
+        <th>Work Type</th><th>Job Title</th><th>Company</th><th>Location</th><th>Posted</th>
       </tr></thead>
       <tbody>${tbody}</tbody>
     </table>`;
 }
 
-// ── Main search ──────────────────────────────────────────────────────────────
+// ── Search ────────────────────────────────────────────────────────────────────
 async function runSearch(){
   const btnSearch = document.getElementById('btn-search');
   const btnSend   = document.getElementById('btn-send');
@@ -315,40 +194,20 @@ async function runSearch(){
   document.getElementById('count-badge').style.display = 'none';
   allJobs = [];
 
-  // ── LinkedIn ─────────────────────────────────────────────────────────────
   for (let i = 0; i < LI_QUERIES.length; i++){
-    setStatus(`LinkedIn [${i+1}/${LI_QUERIES.length}] ${LI_QUERIES[i].substring(0,65)}…`);
+    setStatus(`[${i+1}/${LI_QUERIES.length}] ${LI_QUERIES[i].substring(0,70)}…`);
     try {
       const html = await fetchLinkedIn(LI_QUERIES[i], LOCATION);
       allJobs.push(...parseLinkedIn(html));
     } catch(e){
-      setStatus(`LinkedIn [${i+1}] ⚠ ${e.message}`);
-      console.error('LinkedIn error:', e);
+      setStatus(`[${i+1}] ⚠ ${e.message}`);
+      console.error(e);
     }
     if (i < LI_QUERIES.length - 1) await sleep(900);
   }
 
-  await sleep(600);
-
-  // ── Indeed ───────────────────────────────────────────────────────────────
-  let indeedOk = false;
-  for (let i = 0; i < IN_QUERIES.length; i++){
-    setStatus(`Indeed [${i+1}/${IN_QUERIES.length}] ${IN_QUERIES[i].substring(0,65)}…`);
-    try {
-      const xml = await fetchIndeedRSS(IN_QUERIES[i], LOCATION);
-      const found = parseIndeedRSS(xml);
-      allJobs.push(...found);
-      if (found.length) indeedOk = true;
-    } catch(e){
-      console.warn('Indeed skipped:', e.message);
-    }
-    if (i < IN_QUERIES.length - 1) await sleep(900);
-  }
-  if (!indeedOk) console.info('Indeed returned no results (likely blocked) — LinkedIn only.');
-
   allJobs = dedupe(allJobs);
   allJobs.sort((a, b) => workTypePriority(a.workType) - workTypePriority(b.workType));
-
   renderTable(allJobs);
 
   const badge = document.getElementById('count-badge');
@@ -356,24 +215,15 @@ async function runSearch(){
   badge.style.display = 'inline-block';
 
   const hybridCount = allJobs.filter(j => j.workType === 'Hybrid').length;
-  const liCount = allJobs.filter(j => j.source === 'LinkedIn').length;
-  const inCount = allJobs.filter(j => j.source === 'Indeed').length;
-  const indeedNote = inCount ? `Indeed: ${inCount}` : 'Indeed: blocked';
-  setStatus(`Done — ${allJobs.length} unique roles (${hybridCount} hybrid) · LinkedIn: ${liCount} · ${indeedNote}`);
+  setStatus(`Done — ${allJobs.length} unique roles (${hybridCount} hybrid). Hybrid listed first.`);
 
   btnSearch.disabled = false;
-  btnSearch.textContent = '🔍 Search LinkedIn + Indeed';
+  btnSearch.textContent = '🔍 Search LinkedIn';
   if (allJobs.length) btnSend.disabled = false;
 }
 
-// ── Gmail API Draft ──────────────────────────────────────────────────────────
-// SETUP (one-time, 5 min):
-//  1. console.cloud.google.com → New Project → Enable "Gmail API"
-//  2. APIs & Services → Credentials → OAuth 2.0 Client ID → Web Application
-//  3. Add  https://ofermanom-hub.github.io  as Authorised JavaScript origin
-//  4. Paste the Client ID below.
+// ── Gmail Draft ───────────────────────────────────────────────────────────────
 const GMAIL_CLIENT_ID = '980009407381-047vhj5e3qs6i87gemetgcbrdo4n6o5r.apps.googleusercontent.com';
-
 let _tokenClient = null;
 let _gisReady    = false;
 
@@ -402,9 +252,6 @@ function buildHtmlEmail(jobs){
     wt==='Remote'  ? 'background:#eef0ff;color:#4f46e5'  :
     wt==='On-site' ? 'background:#f1f5f9;color:#64748b'  :
                      'background:#f8fafc;color:#94a3b8';
-  const srcStyle = s => s==='LinkedIn'
-    ? 'background:#dbeafe;color:#1d4ed8'
-    : 'background:#fef9c3;color:#a16207';
   const postedColor = p => {
     if (!p) return '#94a3b8';
     if (/today|\d+\s*(min|hour)/i.test(p)||/^[1-9]\s*day/i.test(p)||/1\s*week/i.test(p)) return '#059669';
@@ -416,9 +263,6 @@ function buildHtmlEmail(jobs){
       <td style="padding:9px 12px;border-bottom:1px solid #eee">
         <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;${wtStyle(j.workType)}">${j.workType}</span>
       </td>
-      <td style="padding:9px 12px;border-bottom:1px solid #eee">
-        <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;${srcStyle(j.source)}">${j.source}</span>
-      </td>
       <td style="padding:9px 12px;border-bottom:1px solid #eee;font-weight:600">
         ${j.url ? `<a href="${j.url}" style="color:#0a66c2;text-decoration:none">${j.title}</a>` : j.title}
       </td>
@@ -427,15 +271,14 @@ function buildHtmlEmail(jobs){
       <td style="padding:9px 12px;border-bottom:1px solid #eee;font-size:12px;color:${postedColor(j.posted)}">${j.posted||'—'}</td>
     </tr>`).join('');
 
-  return `<html><body style="font-family:Arial,sans-serif;color:#333;max-width:960px;margin:auto">
+  return `<html><body style="font-family:Arial,sans-serif;color:#333;max-width:900px;margin:auto">
 <div style="background:#0a66c2;padding:20px 24px;border-radius:8px 8px 0 0">
-  <h2 style="color:#fff;margin:0;font-size:19px">&#128269; Job Digest — LinkedIn + Indeed</h2>
+  <h2 style="color:#fff;margin:0;font-size:19px">&#128269; LinkedIn Job Digest</h2>
   <p style="color:rgba(255,255,255,.75);margin:5px 0 0;font-size:12px">Senior Implementation · TAM · CX · Enablement · Tel Aviv · ${today}</p>
 </div>
 <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #ddd;border-top:none">
   <thead><tr style="background:#f0f4f8">
     <th style="padding:9px 12px;text-align:left;color:#0a66c2;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Work Type</th>
-    <th style="padding:9px 12px;text-align:left;color:#0a66c2;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Source</th>
     <th style="padding:9px 12px;text-align:left;color:#0a66c2;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Title</th>
     <th style="padding:9px 12px;text-align:left;color:#0a66c2;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Company</th>
     <th style="padding:9px 12px;text-align:left;color:#0a66c2;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Location</th>
@@ -451,33 +294,40 @@ function buildHtmlEmail(jobs){
 
 async function createGmailDraft(){
   if (!allJobs.length) return;
-  if (!GMAIL_CLIENT_ID || GMAIL_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID'){
-    setStatus('⚠ Paste your Google OAuth Client ID into the page (see setup comment in source).');
-    return;
-  }
   const btn = document.getElementById('btn-send');
   btn.disabled = true;
   btn.textContent = '⏳ Authorising…';
-  setStatus('Waiting for Google sign-in…');
+  setStatus('Opening Google sign-in…');
   await loadGIS();
-  if (!_tokenClient){
-    _tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: GMAIL_CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/gmail.compose',
-      callback: async (resp) => {
-        btn.disabled = false; btn.textContent = '✉ Create Gmail Draft';
-        if (resp.error){ setStatus('⚠ Auth error: ' + resp.error); return; }
-        await _doCreateDraft(resp.access_token);
+
+  _tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GMAIL_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/gmail.compose',
+    callback: async (resp) => {
+      const b = document.getElementById('btn-send');
+      b.disabled = false;
+      b.textContent = '✉ Create Gmail Draft';
+      if (resp.error){
+        setStatus('⚠ Sign-in failed: ' + resp.error);
+        return;
       }
-    });
-  }
-  _tokenClient.requestAccessToken({ prompt: 'none' });
+      await _doCreateDraft(resp.access_token);
+    },
+    error_callback: () => {
+      const b = document.getElementById('btn-send');
+      b.disabled = false;
+      b.textContent = '✉ Create Gmail Draft';
+      setStatus('⚠ Sign-in cancelled.');
+    }
+  });
+
+  // No prompt option — shows popup if needed, silent if already authorised
+  _tokenClient.requestAccessToken();
 }
 
 async function _doCreateDraft(token){
   const today   = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  const subject = `Job Digest — LinkedIn + Indeed · Tel Aviv · ${today}`;
-  const html    = buildHtmlEmail(allJobs);
+  const subject = `LinkedIn Job Digest — Tel Aviv · ${today}`;
   const mime    = [
     'From: ' + RECIPIENT,
     'To: '   + RECIPIENT,
@@ -485,9 +335,10 @@ async function _doCreateDraft(token){
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=UTF-8',
     '',
-    html
+    buildHtmlEmail(allJobs)
   ].join('\r\n');
 
+  setStatus('Creating draft…');
   const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
@@ -498,11 +349,7 @@ async function _doCreateDraft(token){
     setStatus('✓ Draft saved — open Gmail Drafts to review and send.');
   } else {
     const err = await resp.json().catch(()=>({}));
-    if (resp.status === 401){
-      _tokenClient.requestAccessToken({ prompt: 'select_account' });
-    } else {
-      setStatus('⚠ Draft failed: ' + (err.error?.message || resp.status));
-    }
+    setStatus('⚠ Draft failed: ' + (err.error?.message || resp.status));
   }
 }
 </script>
