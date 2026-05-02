@@ -135,7 +135,7 @@ function parseLinkedIn(html){
       title:   titleEl.textContent.trim(),
       company: companyEl?companyEl.textContent.trim():'',
       location:locEl?locEl.textContent.trim():LOCATION,
-      url:     linkEl?linkEl.href.split('?')[0]:'',
+      url:     linkEl?linkEl.href.split('?')[0].replace(/[^a-zA-Z0-9/_-]+$/,''):'',
       posted:  timeEl?(timeEl.textContent.trim()||timeEl.getAttribute('datetime')||''):'',
       workType,
     });
