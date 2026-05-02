@@ -211,15 +211,23 @@ function confirmFilter(){
 }
 
 // ── LinkedIn ──────────────────────────────────────────────────────────────────
-async function fetchLinkedIn(keywords, location){
-  const target = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search'
+// f_WT: 1=On-site  2=Remote  3=Hybrid  (omit = all)
+const WT_FILTERS = [
+  { f_WT: 3, label: 'Hybrid'   },
+  { f_WT: 2, label: 'Remote'   },
+  { f_WT: 1, label: 'On-site'  },
+];
+
+async function fetchLinkedIn(keywords, location, f_WT){
+  let url = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search'
     + `?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&start=0`;
-  const resp = await fetch(CORS + encodeURIComponent(target));
+  if(f_WT) url += `&f_WT=${f_WT}`;
+  const resp = await fetch(CORS + encodeURIComponent(url));
   if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.text();
 }
 
-function parseLinkedIn(html){
+function parseLinkedIn(html, forcedWorkType){
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const jobs = [];
   doc.querySelectorAll('li').forEach(card => {
@@ -230,7 +238,9 @@ function parseLinkedIn(html){
     const timeEl    = card.querySelector('time');
     const wtEl      = card.querySelector('.job-search-card__workplace-type');
     if(!titleEl) return;
-    const workType = wtEl ? detectWorkType(wtEl.textContent) : detectWorkType(card.textContent);
+    // Use forced work type from f_WT filter when available; fall back to HTML parsing
+    const workType = forcedWorkType
+      || (wtEl ? detectWorkType(wtEl.textContent) : detectWorkType(card.textContent));
     jobs.push({
       title:    titleEl.textContent.trim(),
       company:  companyEl ? companyEl.textContent.trim() : '',
@@ -323,16 +333,19 @@ async function runSearch(){
   document.getElementById('count-badge').style.display='none';
   allJobs=[];
 
+  // For each query run all 3 work-type filters in parallel — work type is
+  // guaranteed by the filter used, not by parsing the HTML card.
   for(let i=0; i<LI_QUERIES.length; i++){
-    setStatus(`[${i+1}/${LI_QUERIES.length}] ${LI_QUERIES[i].substring(0,65)}…`);
-    try{
-      const html = await fetchLinkedIn(LI_QUERIES[i], LOCATION);
-      allJobs.push(...parseLinkedIn(html));
-    }catch(e){
-      setStatus(`[${i+1}] ⚠ ${e.message}`);
-      console.error(e);
-    }
-    if(i<LI_QUERIES.length-1) await sleep(900);
+    setStatus(`[${i+1}/${LI_QUERIES.length}] fetching Hybrid / Remote / On-site…`);
+    const results = await Promise.allSettled(
+      WT_FILTERS.map(({f_WT, label}) =>
+        fetchLinkedIn(LI_QUERIES[i], LOCATION, f_WT)
+          .then(html => parseLinkedIn(html, label))
+          .catch(() => [])
+      )
+    );
+    results.forEach(r => { if(r.status==='fulfilled') allJobs.push(...r.value); });
+    if(i<LI_QUERIES.length-1) await sleep(1200);
   }
 
   allJobs = filterRelevant(dedupe(allJobs));
