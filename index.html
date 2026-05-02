@@ -351,9 +351,25 @@ function sendToGmail(){
   const today = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
   const subject = `Job Digest — LinkedIn + Indeed · Tel Aviv · ${today}`;
 
-  const body = allJobs.map((j,i) =>
-    `${i+1}. [${j.workType}][${j.source}] ${j.title} @ ${j.company}\n   ${j.location}${j.posted?' · '+j.posted:''}\n   ${j.url}`
-  ).join('\n\n');
+  // Compact one-line format to stay within Gmail URL limits (~2000 chars for body)
+  const MAX_BODY = 1800;
+  let lines = [];
+  for (const j of allJobs) {
+    lines.push(`[${j.workType}] ${j.title} @ ${j.company} | ${j.url}`);
+  }
+  let body = lines.join('\n');
+  if (body.length > MAX_BODY) {
+    const kept = [];
+    let len = 0;
+    for (const l of lines) {
+      if (len + l.length + 1 > MAX_BODY - 40) {
+        kept.push(`... and ${lines.length - kept.length} more roles`);
+        break;
+      }
+      kept.push(l); len += l.length + 1;
+    }
+    body = kept.join('\n');
+  }
 
   const gmailUrl = 'https://mail.google.com/mail/?view=cm'
     + '&to='  + encodeURIComponent(RECIPIENT)
