@@ -371,13 +371,12 @@ function sendToGmail(){
     body = kept.join('\n');
   }
 
-  const gmailUrl = 'https://mail.google.com/mail/?view=cm'
-    + '&to='  + encodeURIComponent(RECIPIENT)
-    + '&su='  + encodeURIComponent(subject)
-    + '&body='+ encodeURIComponent(body);
+  const mailtoUrl = 'mailto:' + encodeURIComponent(RECIPIENT)
+    + '?subject=' + encodeURIComponent(subject)
+    + '&body='    + encodeURIComponent(body);
 
-  window.open(gmailUrl, '_blank', 'noopener,noreferrer');
-  setStatus('Gmail compose opened — click Send to deliver the digest.');
+  window.location.href = mailtoUrl;
+  setStatus('Mail compose opened — click Send to deliver the digest.');
 }
 </script>
 </body>
