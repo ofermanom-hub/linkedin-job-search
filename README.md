@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿# LinkedIn Job Search Digest
 
 Searches LinkedIn for senior Implementation / TAM / CX / Enablement roles in Tel Aviv and emails a formatted digest via Gmail MCP.
@@ -25,3 +26,7 @@ python3 linkedin_job_search.py
 2. Uses Claude (`claude-sonnet-4-6`) with the built-in `web_search` tool to run each query and extract job listings
 3. Deduplicates results across queries
 4. Sends a formatted HTML digest email to the configured recipient via Gmail MCP
+=======
+# linkedin-job-search
+LinkedIn senior tech job search digest - Tel Aviv, powered by Claude Code
+>>>>>>> c01d9eec35fdc50b137537059d739727b1598938
