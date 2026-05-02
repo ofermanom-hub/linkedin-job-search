@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://media.licdn.com https://*.licdn.com; connect-src 'self' https://corsproxy.io; frame-src 'none'; object-src 'none';">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <title>LinkedIn Job Digest — Tel Aviv</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -137,12 +139,32 @@ const LI_QUERIES = [
   'Partner Manager OR Channel Partner Manager OR Alliance Manager OR Partner Success Manager OR Partner Development Manager OR Senior Partner Manager',
 ];
 
-let allJobs  = [];
-let blocklist = JSON.parse(localStorage.getItem('job-blocklist') || '[]');
+let allJobs   = [];
+let blocklist  = JSON.parse(localStorage.getItem('job-blocklist') || '[]');
+let _searching = false;
+let _lastSearch = 0;
+const SEARCH_COOLDOWN_MS = 30_000;  // 30 s between searches
+const FETCH_TIMEOUT_MS   = 12_000;  // 12 s per request
+const MAX_FILTER_WORDS   = 100;
+const MAX_FILTER_LEN     = 80;
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function setStatus(msg){ document.getElementById('status').textContent = msg; }
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+// Only allow https:// URLs — blocks javascript: and data: injection
+function safeUrl(url){
+  try { return new URL(url).protocol === 'https:' ? url : ''; }
+  catch{ return ''; }
+}
+
+// Only allow LinkedIn CDN for images
+function safeLogoUrl(url){
+  try {
+    const u = new URL(url);
+    return (u.protocol === 'https:' && /\.licdn\.com$/i.test(u.hostname)) ? url : '';
+  } catch{ return ''; }
+}
 
 function workTypePriority(wt){ return {Hybrid:0,Remote:1,'On-site':2,'Not specified':3}[wt]??3; }
 function postedClass(txt){
@@ -201,10 +223,14 @@ function closeModal(){ document.getElementById('modal').style.display = 'none'; 
 function handleOverlayClick(e){ if(e.target===document.getElementById('modal')) closeModal(); }
 
 function confirmFilter(){
-  const raw = document.getElementById('filter-input').value.trim();
+  const raw = document.getElementById('filter-input').value.trim().substring(0, 500);
   if(!raw){ closeModal(); return; }
-  const words = raw.split(/[,]+/).map(w=>w.trim().toLowerCase()).filter(Boolean);
-  words.forEach(w=>{ if(w && !blocklist.includes(w)) blocklist.push(w); });
+  const words = raw.split(/[,]+/)
+    .map(w => w.trim().toLowerCase().substring(0, MAX_FILTER_LEN))
+    .filter(Boolean);
+  words.forEach(w => {
+    if(w && !blocklist.includes(w) && blocklist.length < MAX_FILTER_WORDS) blocklist.push(w);
+  });
   saveBlocklist();
   closeModal();
   renderFiltersBar();
@@ -224,9 +250,15 @@ async function fetchLinkedIn(keywords, location, f_WT){
   let url = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search'
     + `?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&start=0`;
   if(f_WT) url += `&f_WT=${f_WT}`;
-  const resp = await fetch(CORS + encodeURIComponent(url));
-  if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.text();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const resp = await fetch(CORS + encodeURIComponent(url), { signal: ctrl.signal });
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return resp.text();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function parseLinkedIn(html, forcedWorkType){
@@ -244,12 +276,13 @@ function parseLinkedIn(html, forcedWorkType){
     const workType = forcedWorkType
       || (wtEl ? detectWorkType(wtEl.textContent) : detectWorkType(card.textContent));
     const rawLogo = imgEl ? (imgEl.getAttribute('data-delayed-url') || imgEl.getAttribute('src') || '') : '';
-    const logo = rawLogo.startsWith('data:') ? '' : rawLogo;
+    const logo = safeLogoUrl(rawLogo);
+    const rawUrl = linkEl ? linkEl.href.split('?')[0].replace(/[^a-zA-Z0-9/_-]+$/,'') : '';
     jobs.push({
-      title:    titleEl.textContent.trim(),
-      company:  companyEl ? companyEl.textContent.trim() : '',
-      location: locEl ? locEl.textContent.trim() : LOCATION,
-      url:      linkEl ? linkEl.href.split('?')[0].replace(/[^a-zA-Z0-9/_-]+$/,'') : '',
+      title:    titleEl.textContent.trim().substring(0, 200),
+      company:  companyEl ? companyEl.textContent.trim().substring(0, 100) : '',
+      location: locEl ? locEl.textContent.trim().substring(0, 100) : LOCATION,
+      url:      safeUrl(rawUrl),
       posted:   timeEl ? (timeEl.textContent.trim() || timeEl.getAttribute('datetime') || '') : '',
       workType,
       logo,
@@ -335,12 +368,22 @@ function updateBadge(jobs){
 
 // ── Search ────────────────────────────────────────────────────────────────────
 async function runSearch(){
+  if(_searching){ return; }
+  const now = Date.now();
+  if(now - _lastSearch < SEARCH_COOLDOWN_MS){
+    const secs = Math.ceil((SEARCH_COOLDOWN_MS - (now - _lastSearch)) / 1000);
+    setStatus(`⏳ Please wait ${secs}s before searching again.`);
+    return;
+  }
+  _searching = true;
+  _lastSearch = now;
   const btn = document.getElementById('btn-search');
   btn.disabled = true;
   btn.textContent = '⏳ Searching…';
   document.getElementById('count-badge').style.display='none';
   allJobs=[];
 
+  try {
   // For each query run all 3 work-type filters in parallel — work type is
   // guaranteed by the filter used, not by parsing the HTML card.
   for(let i=0; i<LI_QUERIES.length; i++){
@@ -368,6 +411,14 @@ async function runSearch(){
   setStatus(`${visible.length} roles · ${hybridCount} hybrid · Hybrid first${blocklist.length?' · '+blocklist.length+' filter'+(blocklist.length>1?'s':'')+' active':''}`);
   btn.disabled=false;
   btn.textContent='🔍 Search LinkedIn';
+  } catch(e){
+    setStatus('⚠ Unexpected error — ' + e.message);
+    console.error(e);
+  } finally {
+    _searching = false;
+    document.getElementById('btn-search').disabled = false;
+    document.getElementById('btn-search').textContent = '🔍 Search LinkedIn';
+  }
 }
 
 // Init filters bar on load
