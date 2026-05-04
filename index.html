@@ -46,6 +46,12 @@
     tr.row-hybrid td{background:rgba(110,231,197,.04)}
     tr.row-hybrid:hover td{background:rgba(110,231,197,.07)}
 
+    tr.row-rejected td{background:rgba(239,68,68,.05);color:rgba(255,255,255,.38);text-decoration:line-through}
+    tr.row-rejected:hover td{background:rgba(239,68,68,.09)}
+    tr.row-rejected .job-link{color:rgba(255,255,255,.38);text-decoration:line-through}
+    tr.row-rejected .job-link:hover{color:#f87171}
+    .badge-rejected{background:rgba(239,68,68,.18);color:#f87171;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;vertical-align:middle;white-space:nowrap;text-decoration:none;display:inline-block}
+
     .job-link{color:#e2e8f0;font-weight:600;text-decoration:none;line-height:1.35}
     .job-link:hover{color:#6ee7c5;text-decoration:underline}
     .col-company{color:rgba(255,255,255,.6)}
@@ -139,8 +145,9 @@ const LI_QUERIES = [
   'Partner Manager OR Channel Partner Manager OR Alliance Manager OR Partner Success Manager OR Partner Development Manager OR Senior Partner Manager',
 ];
 
-let allJobs   = [];
-let blocklist  = JSON.parse(localStorage.getItem('job-blocklist') || '[]');
+let allJobs          = [];
+let blocklist        = JSON.parse(localStorage.getItem('job-blocklist') || '[]');
+let rejectedCompanies = new Set();
 let _searching = false;
 let _lastSearch = 0;
 const SEARCH_COOLDOWN_MS = 30_000;  // 30 s between searches
@@ -192,8 +199,26 @@ function isBlocked(job){
   );
 }
 
+function isRejected(job){
+  const needle = job.company.toLowerCase().trim();
+  for(const r of rejectedCompanies){
+    if(r.includes(needle) || needle.includes(r)) return true;
+  }
+  return false;
+}
+
 function getVisibleJobs(){
   return allJobs.filter(j => !isBlocked(j));
+}
+
+async function loadRejectedCompanies(){
+  try{
+    const resp = await fetch('./rejected_companies.json');
+    if(!resp.ok) return;
+    const data = await resp.json();
+    if(Array.isArray(data))
+      rejectedCompanies = new Set(data.map(c => String(c).toLowerCase().trim()));
+  } catch(e){ /* silent — file may not exist yet */ }
 }
 
 function renderFiltersBar(){
@@ -304,47 +329,59 @@ function dedupe(jobs){
 
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderTable(jobs){
-  if(!jobs.length){
+  const normalJobs   = jobs.filter(j => !isRejected(j));
+  const rejectedJobs = jobs.filter(j =>  isRejected(j));
+
+  if(!normalJobs.length && !rejectedJobs.length){
     document.getElementById('table-wrap').innerHTML='<p class="empty">No results — try clearing some filters.</p>';
     return;
   }
-  const hybridJobs = jobs.filter(j => j.workType==='Hybrid');
-  const otherJobs  = jobs.filter(j => j.workType!=='Hybrid');
 
-  function row(j){
-    const cls = j.workType==='Hybrid' ? ' class="row-hybrid"' : '';
+  const hybridJobs = normalJobs.filter(j => j.workType==='Hybrid');
+  const otherJobs  = normalJobs.filter(j => j.workType!=='Hybrid');
+
+  function row(j, rejected){
+    const cls = rejected ? ' class="row-rejected"' : (j.workType==='Hybrid' ? ' class="row-hybrid"' : '');
     const titleCell = j.url
       ? `<a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" class="job-link">${esc(j.title)}</a>`
       : esc(j.title);
     const logoImg = j.logo
       ? `<img src="${esc(j.logo)}" class="company-logo" alt="" loading="lazy" onerror="this.style.display='none'">`
       : '';
+    const rejectedBadge = rejected ? `<span class="badge-rejected">Applied</span>` : '';
     const metaParts = [
-      j.company  ? `<span class="meta-company">${logoImg}${esc(j.company)}</span>` : '',
+      j.company  ? `<span class="meta-company">${logoImg}${esc(j.company)}${rejected?' <span style="color:#f87171;font-size:10px">(Applied)</span>':''}</span>` : '',
       j.location ? `<span class="meta-loc">${esc(j.location)}</span>` : '',
       j.posted   ? `<span class="meta-posted ${postedClass(j.posted)}">${esc(j.posted)}</span>` : '',
     ].filter(Boolean).join(' <span style="opacity:.3">·</span> ');
 
     const dismissData = `data-title="${esc(j.title)}" data-company="${esc(j.company)}"`;
+    const dismissBtn = rejected ? '<td class="col-dismiss"></td>' :
+      `<td class="col-dismiss"><button class="btn-dismiss" ${dismissData} onclick="openModal(this.dataset.title,this.dataset.company)" title="Not interested">✕</button></td>`;
     return `<tr${cls}>
       <td><span class="badge ${badgeClass(j.workType)}">${esc(j.workType)}</span></td>
-      <td>${titleCell}<span class="job-meta">${metaParts}</span></td>
-      <td class="col-company"><span class="company-cell">${logoImg}${esc(j.company)}</span></td>
+      <td>${titleCell}${rejectedBadge}<span class="job-meta">${metaParts}</span></td>
+      <td class="col-company"><span class="company-cell">${logoImg}${esc(j.company)}${rejected?`<span class="badge-rejected" style="margin-left:8px">Applied</span>`:''}
+      </span></td>
       <td class="col-loc">${esc(j.location)}</td>
       <td class="${postedClass(j.posted)} col-posted">${esc(j.posted)}</td>
-      <td class="col-dismiss"><button class="btn-dismiss" ${dismissData} onclick="openModal(this.dataset.title,this.dataset.company)" title="Not interested">✕</button></td>
+      ${dismissBtn}
     </tr>`;
   }
 
   let tbody='';
   if(hybridJobs.length){
     tbody+=`<tr class="section-divider"><td colspan="6">&#9670; Hybrid — ${hybridJobs.length} role${hybridJobs.length>1?'s':''}</td></tr>`;
-    tbody+=hybridJobs.map(row).join('');
+    tbody+=hybridJobs.map(j=>row(j,false)).join('');
   }
   if(otherJobs.length){
     if(hybridJobs.length)
       tbody+=`<tr class="section-divider"><td colspan="6">Other — ${otherJobs.length} role${otherJobs.length>1?'s':''}</td></tr>`;
-    tbody+=otherJobs.map(row).join('');
+    tbody+=otherJobs.map(j=>row(j,false)).join('');
+  }
+  if(rejectedJobs.length){
+    tbody+=`<tr class="section-divider" style="color:rgba(239,68,68,.5)"><td colspan="6">&#9670; Already Applied — ${rejectedJobs.length} role${rejectedJobs.length>1?'s':''}</td></tr>`;
+    tbody+=rejectedJobs.map(j=>row(j,true)).join('');
   }
 
   document.getElementById('table-wrap').innerHTML=`
@@ -407,8 +444,10 @@ async function runSearch(){
   renderTable(visible);
   updateBadge(visible);
 
-  const hybridCount = visible.filter(j=>j.workType==='Hybrid').length;
-  setStatus(`${visible.length} roles · ${hybridCount} hybrid · Hybrid first${blocklist.length?' · '+blocklist.length+' filter'+(blocklist.length>1?'s':'')+' active':''}`);
+  const hybridCount   = visible.filter(j=>j.workType==='Hybrid' && !isRejected(j)).length;
+  const rejectedCount = visible.filter(j=>isRejected(j)).length;
+  const newCount      = visible.length - rejectedCount;
+  setStatus(`${newCount} new · ${hybridCount} hybrid · Hybrid first${rejectedCount?' · '+rejectedCount+' applied':''}${blocklist.length?' · '+blocklist.length+' filter'+(blocklist.length>1?'s':'')+' active':''}`);
   btn.disabled=false;
   btn.textContent='🔍 Search LinkedIn';
   } catch(e){
@@ -421,8 +460,9 @@ async function runSearch(){
   }
 }
 
-// Init filters bar on load
+// Init filters bar and rejected companies on load
 renderFiltersBar();
+loadRejectedCompanies();
 </script>
 </body>
 </html>
