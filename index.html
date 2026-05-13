@@ -18,6 +18,8 @@
     .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
     .btn-search{background:#0F6E56;color:#fff}
     .btn-search:not(:disabled):hover{background:#0a5442;transform:translateY(-1px)}
+    .btn-refresh{background:#243548;color:#e2e8f0;border:1px solid rgba(255,255,255,.1)}
+    .btn-refresh:not(:disabled):hover{background:#2d4258;transform:translateY(-1px)}
     .count{background:rgba(110,231,197,.15);color:#6ee7c5;font-size:12px;font-weight:700;padding:3px 11px;border-radius:20px;display:none}
 
     .status{font-size:11px;color:rgba(255,255,255,.3);font-family:monospace;min-height:15px;margin-bottom:10px}
@@ -112,6 +114,7 @@
 
   <div class="actions">
     <button class="btn btn-search" id="btn-search" onclick="runSearch()">&#128269; Search LinkedIn</button>
+    <button class="btn btn-refresh" id="btn-refresh" onclick="refreshApplied()" title="Scan Gmail for jobs you applied to in the past 6 months">&#128231; Refresh Applied</button>
     <span class="count" id="count-badge"></span>
   </div>
   <div class="status" id="status">Tap "Search LinkedIn" to fetch the latest openings.</div>
@@ -457,6 +460,37 @@ async function runSearch(){
     _searching = false;
     document.getElementById('btn-search').disabled = false;
     document.getElementById('btn-search').textContent = '🔍 Search LinkedIn';
+  }
+}
+
+// ── Refresh Applied (Gmail scan via Flask backend) ───────────────────────────
+async function refreshApplied(){
+  const btn = document.getElementById('btn-refresh');
+  if(btn.disabled) return;
+  btn.disabled = true;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '⏳ Scanning Gmail…';
+  setStatus('Scanning Gmail for applications in the past 6 months…');
+  try{
+    const resp = await fetch('/refresh-applied', {method:'POST'});
+    const data = await resp.json();
+    if(!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    await loadRejectedCompanies();
+    const addedNote = data.added && data.added.length
+      ? ` · added: ${data.added.slice(0,5).join(', ')}${data.added.length>5?'…':''}`
+      : '';
+    setStatus(`✓ Gmail scan complete — ${data.scanned} found, ${data.added.length} new, ${data.total} total applied${addedNote}`);
+    if(allJobs.length){
+      const visible = getVisibleJobs();
+      renderTable(visible);
+      updateBadge(visible);
+    }
+  } catch(e){
+    setStatus('⚠ Refresh failed — ' + e.message);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
   }
 }
 
