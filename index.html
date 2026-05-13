@@ -24,6 +24,16 @@
 
     .status{font-size:11px;color:rgba(255,255,255,.3);font-family:monospace;min-height:15px;margin-bottom:10px}
 
+    /* Progress bar (indeterminate) */
+    .progress-wrap{display:none;margin-bottom:12px}
+    .progress-wrap.on{display:block}
+    .progress-bar{height:4px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;position:relative}
+    .progress-bar::after{content:'';position:absolute;left:-30%;top:0;height:100%;width:30%;background:linear-gradient(90deg,transparent,#6ee7c5,transparent);animation:slide 1.4s ease-in-out infinite}
+    @keyframes slide{0%{left:-30%}100%{left:100%}}
+    .progress-meta{display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,.45);font-family:monospace;margin-top:5px;gap:8px}
+    .progress-meta span{white-space:nowrap}
+    .progress-meta .msg{flex:1;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.65)}
+
     /* Filter chips */
     .filters-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
     .filters-bar:empty{margin-bottom:0}
@@ -115,9 +125,17 @@
   <div class="actions">
     <button class="btn btn-search" id="btn-search" onclick="runSearch()">&#128269; Search LinkedIn</button>
     <button class="btn btn-refresh" id="btn-refresh" onclick="refreshApplied()" title="Scan Gmail for jobs you applied to in the past 6 months">&#128231; Refresh Applied</button>
+    <button class="btn btn-refresh" id="btn-cancel" onclick="cancelRefresh()" style="display:none">&#10005; Cancel</button>
     <span class="count" id="count-badge"></span>
   </div>
   <div class="status" id="status">Tap "Search LinkedIn" to fetch the latest openings.</div>
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-bar"></div>
+    <div class="progress-meta">
+      <span class="msg" id="progress-msg">Starting…</span>
+      <span id="progress-counts"></span>
+    </div>
+  </div>
   <div class="filters-bar" id="filters-bar"></div>
   <div class="table-wrap" id="table-wrap"></div>
 </div>
@@ -463,35 +481,81 @@ async function runSearch(){
   }
 }
 
-// ── Refresh Applied (Gmail scan via Flask backend) ───────────────────────────
-async function refreshApplied(){
+// ── Refresh Applied (Gmail scan via Flask backend, SSE progress) ─────────────
+let _refreshES = null;
+
+function cancelRefresh(){
+  if(_refreshES){ _refreshES.close(); _refreshES = null; }
+  document.getElementById('btn-refresh').disabled = false;
+  document.getElementById('btn-refresh').innerHTML = '📧 Refresh Applied';
+  document.getElementById('btn-cancel').style.display = 'none';
+  document.getElementById('progress-wrap').classList.remove('on');
+  setStatus('Scan cancelled.');
+}
+
+function refreshApplied(){
   const btn = document.getElementById('btn-refresh');
+  const cancelBtn = document.getElementById('btn-cancel');
   if(btn.disabled) return;
   btn.disabled = true;
   const orig = btn.innerHTML;
   btn.innerHTML = '⏳ Scanning Gmail…';
+  cancelBtn.style.display = 'inline-flex';
+
+  const wrap     = document.getElementById('progress-wrap');
+  const msgEl    = document.getElementById('progress-msg');
+  const countsEl = document.getElementById('progress-counts');
+  wrap.classList.add('on');
+  msgEl.textContent  = 'Connecting…';
+  countsEl.textContent = '';
   setStatus('Scanning Gmail for applications in the past 6 months…');
-  try{
-    const resp = await fetch('/refresh-applied', {method:'POST'});
-    const data = await resp.json();
-    if(!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+
+  const started = Date.now();
+  const es = new EventSource('/refresh-applied-stream');
+  _refreshES = es;
+
+  function cleanup(){
+    es.close();
+    _refreshES = null;
+    btn.disabled = false;
+    btn.innerHTML = orig;
+    cancelBtn.style.display = 'none';
+    wrap.classList.remove('on');
+  }
+
+  es.addEventListener('progress', (e) => {
+    const d = JSON.parse(e.data);
+    msgEl.textContent = d.message || '…';
+    const secs = Math.floor((Date.now()-started)/1000);
+    const parts = [];
+    if(d.searches) parts.push(`${d.searches} search`+(d.searches>1?'es':''));
+    if(d.reads)    parts.push(`${d.reads} read`+(d.reads>1?'s':''));
+    parts.push(`${secs}s`);
+    countsEl.textContent = parts.join(' · ');
+  });
+
+  es.addEventListener('done', async (e) => {
+    const d = JSON.parse(e.data);
+    cleanup();
     await loadRejectedCompanies();
-    const addedNote = data.added && data.added.length
-      ? ` · added: ${data.added.slice(0,5).join(', ')}${data.added.length>5?'…':''}`
+    const addedNote = d.added && d.added.length
+      ? ` · added: ${d.added.slice(0,5).join(', ')}${d.added.length>5?'…':''}`
       : '';
-    setStatus(`✓ Gmail scan complete — ${data.scanned} found, ${data.added.length} new, ${data.total} total applied${addedNote}`);
+    const secs = Math.floor((Date.now()-started)/1000);
+    setStatus(`✓ Gmail scan complete in ${secs}s — ${d.scanned} found, ${d.added.length} new, ${d.total} total applied${addedNote}`);
     if(allJobs.length){
       const visible = getVisibleJobs();
       renderTable(visible);
       updateBadge(visible);
     }
-  } catch(e){
-    setStatus('⚠ Refresh failed — ' + e.message);
-    console.error(e);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = orig;
-  }
+  });
+
+  es.addEventListener('error', (e) => {
+    let msg = 'connection lost';
+    try { if(e.data) msg = JSON.parse(e.data).message || msg; } catch{}
+    cleanup();
+    setStatus('⚠ Refresh failed — ' + msg);
+  });
 }
 
 // Init filters bar and rejected companies on load

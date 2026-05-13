@@ -20,7 +20,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, Response, jsonify, send_from_directory
 
 ROOT = Path(__file__).parent
 REJECTED_FILE = ROOT / "rejected_companies.json"
@@ -31,56 +31,58 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-CLAUDE_SCAN_PROMPT = """Use the Gmail MCP integration (mcp__claude_ai_Gmail__search_threads
-and mcp__claude_ai_Gmail__get_thread) to find EVERY job application I submitted in the
-LAST 6 MONTHS. Be exhaustive — missing one is worse than including a duplicate.
+CLAUDE_SCAN_PROMPT = """Find every company I'm in active hiring conversations with in the
+LAST 6 MONTHS — including applications, recruiter outreach, interviews, and home tasks.
 
-Run these searches separately (combine results, dedupe at the end):
+HARD LIMITS:
+  - Call mcp__claude_ai_Gmail__search_threads AT MOST 2 TIMES.
+  - Use pageSize: 50 (the max).
+  - DO NOT call get_thread.
+  - DO NOT paginate beyond the first page.
 
-1. Subject-line confirmations (highest signal):
-   newer_than:6m subject:("thanks for applying" OR "thank you for applying"
-     OR "we got it" OR "application received" OR "application confirmation"
-     OR "we received your application" OR "your application" OR "application submitted")
+SEARCH 1 — application confirmations:
+  newer_than:6m (subject:"thanks for applying" OR subject:"thank you for applying"
+    OR subject:"we got it" OR subject:"application received"
+    OR subject:"we received your application" OR subject:"application submitted"
+    OR "thanks for your interest in" OR "we've received your application")
 
-2. Body-text confirmations:
-   newer_than:6m ("thanks for applying" OR "thank you for applying"
-     OR "we received your application" OR "your application has been received"
-     OR "application has been submitted" OR "we've received your application"
-     OR "thanks for your interest in" OR "thank you for your interest in"
-     OR "we got your application")
+SEARCH 2 — recruiter / interview / home-task signals:
+  newer_than:6m (subject:"opportunity at" OR subject:"opportunity with"
+    OR subject:"interview with" OR subject:"interview at" OR subject:"video interview"
+    OR subject:"phone interview" OR subject:"home task" OR subject:"take-home"
+    OR subject:"home assignment" OR subject:"next steps" OR subject:"next step"
+    OR subject:"regarding your" OR subject:"position at" OR subject:"role at")
 
-3. ATS / careers sender domains:
-   newer_than:6m (from:careers.* OR from:no-reply@careers.* OR from:talent@
-     OR from:recruiting@ OR from:jobs@ OR from:hello@hi.greenhouse.io
-     OR from:donotreply@notifications.greenhouse.io OR from:no-reply@ashbyhq.com
-     OR from:notifications@lever.co OR from:hi@hire.lever.co
-     OR from:noreply@smartrecruiters.com OR from:no-reply@comeet.co
-     OR from:no-reply@hire.com)
+For EACH returned thread, extract the company from subject + sender:
 
-For EACH search, paginate through ALL results — do not stop at the first page.
+  1. Subject pattern "...at <Company>", "...with <Company>", "...| <Company>",
+     "<Role> at <Company>", "<Role>| <Company>"
+     → "Senior Technical Account Manager opportunity at Kissterra" → "kissterra"
+     → "Technical Account Manager- Home Task| Kissterra" → "kissterra"
 
-SPEED RULE: Do NOT call get_thread unless absolutely necessary. The thread list from
-search_threads already gives you subject + sender, which is enough to identify the
-company in 95% of cases. Extract from subject/sender directly. Only call get_thread
-if subject and sender are both ambiguous.
+  2. Sender domain (strip ALL noise — subdomains AND compound vendor suffixes):
+     no-reply@careers.evinced.com               → "evinced"
+     steram@kissterra.com                       → "kissterra"
+     notifications@kissterra.comeet-notifications.com → "kissterra"
+       (strip ".comeet-notifications.com" / ".greenhouse-mail.io" /
+        ".myworkday.com" / ".lever.co" / ".ashbyhq.com" first;
+        then take the leftmost meaningful segment)
+     jobs@hire.acme.io                          → "acme"
 
-Company extraction rules (apply in this order):
-  1. Subject pattern "...at <Company>" or "...with <Company>" or "...for ... at <Company>"
-     → use <Company>. Example: "Thanks for applying for TAM at Evinced" → "evinced"
-  2. Sender domain — strip subdomain noise:
-     no-reply@careers.evinced.com → "evinced"
-     talent@kisstera.com → "kisstera"
-     jobs@acme.io → "acme"
-  3. Ignore the platform name (LinkedIn, Greenhouse, Lever, Workday, Ashby, SmartRecruiters,
-     Comeet, SparkHire, Indeed, Spark Hire) — those are NEVER the company
-  4. Ignore recruiter agency names; pick the actual employer
+  3. NEVER use as the company: LinkedIn, Greenhouse, Lever, Workday, Ashby,
+     SmartRecruiters, Comeet, SparkHire, Spark Hire, Indeed, Comeet-Notifications,
+     Scheduler, Notifications.
 
-Return ONLY a JSON array of lowercase company names, deduplicated, alphabetised. Strip
-suffixes ("Inc", "Ltd", "Technologies", ".com"). Example:
-["acme", "evinced", "globex", "soylent"]
+  4. Skip recruiter-agency-only threads where no actual employer name appears.
 
-If you find zero confirmations across ALL searches, return [].
-Output ONLY the JSON array — no prose, no markdown fences, no explanation.
+Combine results from BOTH searches, deduplicate, alphabetise.
+
+Return ONLY a JSON array of lowercase company names. Strip suffixes ("Inc", "Ltd",
+"Technologies", ".com"). Example:
+  ["acme", "evinced", "kissterra", "soylent"]
+
+If empty, return [].
+Output ONLY the JSON array — no prose, no markdown fences.
 """
 
 CLAUDE_TIMEOUT_SECONDS = 600
@@ -191,7 +193,137 @@ def refresh_applied():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+@app.route("/refresh-applied-stream")
+def refresh_applied_stream():
+    """SSE stream of progress events while claude scans Gmail."""
+
+    def gen():
+        claude_bin = shutil.which("claude")
+        if not claude_bin:
+            yield _sse("error", {"message": "`claude` CLI not on PATH"})
+            return
+
+        yield _sse("progress", {"step": 0, "message": "Spawning claude…"})
+
+        proc = subprocess.Popen(
+            [
+                claude_bin,
+                "-p", CLAUDE_SCAN_PROMPT,
+                "--output-format", "stream-json",
+                "--verbose",
+                "--permission-mode", "bypassPermissions",
+                "--model", "claude-sonnet-4-6",
+                "--max-turns", "12",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+            cwd=str(ROOT),
+        )
+
+        tool_count = 0
+        search_count = 0
+        read_count = 0
+        final_text = ""
+
+        try:
+            for line in proc.stdout:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    evt = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                t = evt.get("type")
+                if t == "assistant":
+                    for block in evt.get("message", {}).get("content", []):
+                        btype = block.get("type")
+                        if btype == "tool_use":
+                            tool_count += 1
+                            name = block.get("name", "")
+                            inp = block.get("input", {}) or {}
+                            if "search" in name.lower():
+                                search_count += 1
+                                q = str(inp.get("query") or inp)[:80]
+                                msg = f"Searching Gmail (#{search_count}): {q}"
+                            elif "thread" in name.lower() or "message" in name.lower():
+                                read_count += 1
+                                msg = f"Reading thread #{read_count}"
+                            else:
+                                msg = f"Tool: {name}"
+                            yield _sse("progress", {
+                                "step": tool_count,
+                                "searches": search_count,
+                                "reads": read_count,
+                                "message": msg,
+                            })
+                        elif btype == "text":
+                            final_text = block.get("text", "") or final_text
+                elif t == "result":
+                    final_text = evt.get("result") or final_text
+            proc.wait(timeout=CLAUDE_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            yield _sse("error", {"message": "Scan timed out"})
+            return
+        except GeneratorExit:
+            # Browser disconnected — kill the subprocess so it doesn't keep running.
+            log.info("Client disconnected, killing claude subprocess")
+            proc.kill()
+            return
+        except Exception as e:
+            proc.kill()
+            yield _sse("error", {"message": str(e)})
+            return
+
+        try:
+            CLAUDE_LOG.write_text(
+                f"--- exit {proc.returncode} ---\n[final_text]\n{final_text}\n"
+                f"[stderr]\n{proc.stderr.read() if proc.stderr else ''}\n"
+            )
+        except Exception:
+            pass
+
+        if proc.returncode != 0:
+            yield _sse("error", {"message": f"claude exit {proc.returncode}"})
+            return
+
+        match = re.search(r"\[.*\]", final_text, re.DOTALL)
+        companies: list[str] = []
+        if match:
+            try:
+                arr = json.loads(match.group())
+                companies = [str(c).lower().strip() for c in arr if str(c).strip()]
+            except json.JSONDecodeError:
+                pass
+
+        existing = load_existing()
+        added = [c for c in companies if c not in existing]
+        merged = existing | set(companies)
+        save_companies(merged)
+        log.info(f"Stream done: {len(companies)} scanned, {len(added)} new, "
+                 f"{len(merged)} total ({tool_count} tool calls)")
+        yield _sse("done", {
+            "scanned": len(companies),
+            "added": added,
+            "total": len(merged),
+            "tool_calls": tool_count,
+        })
+
+    return Response(
+        gen(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 if __name__ == "__main__":
     if not shutil.which("claude"):
         log.warning("`claude` CLI not on PATH — /refresh-applied will fail.")
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    app.run(host="127.0.0.1", port=5000, debug=False, threaded=True)
