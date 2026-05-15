@@ -481,57 +481,78 @@ async function runSearch(){
   }
 }
 
-// ── Refresh Applied (Gmail scan via Flask backend, SSE progress) ─────────────
+// ── Refresh Applied ──────────────────────────────────────────────────────────
+// Local mode (served by server.py on 127.0.0.1): SSE-streamed progress.
+// Cloud mode (GitHub Pages): POST to ntfy → Mac daemon scans + git-pushes →
+//   page polls last_refresh.json for an updated `ts`.
+const NTFY_TOPIC = 'ofer-linkedin-refresh-f2d0fd01b8cfe3abfafd6b10';
+const NTFY_TOKEN = '5238ea0e39e54f5acd7b125e439b4994';
+const IS_LOCAL = ['127.0.0.1','localhost','0.0.0.0'].includes(location.hostname);
+
 let _refreshES = null;
+let _refreshPoll = null;
 
 function cancelRefresh(){
   if(_refreshES){ _refreshES.close(); _refreshES = null; }
+  if(_refreshPoll){ clearInterval(_refreshPoll); _refreshPoll = null; }
   document.getElementById('btn-refresh').disabled = false;
   document.getElementById('btn-refresh').innerHTML = '📧 Refresh Applied';
   document.getElementById('btn-cancel').style.display = 'none';
   document.getElementById('progress-wrap').classList.remove('on');
-  setStatus('Scan cancelled.');
+  setStatus(IS_LOCAL ? 'Scan cancelled.' : 'Stopped waiting (Mac scan may still complete in background).');
 }
 
 function refreshApplied(){
+  return IS_LOCAL ? refreshAppliedLocal() : refreshAppliedCloud();
+}
+
+function _startRefreshUI(){
   const btn = document.getElementById('btn-refresh');
   const cancelBtn = document.getElementById('btn-cancel');
-  if(btn.disabled) return;
+  if(btn.disabled) return null;
   btn.disabled = true;
   const orig = btn.innerHTML;
   btn.innerHTML = '⏳ Scanning Gmail…';
   cancelBtn.style.display = 'inline-flex';
-
   const wrap     = document.getElementById('progress-wrap');
   const msgEl    = document.getElementById('progress-msg');
   const countsEl = document.getElementById('progress-counts');
   wrap.classList.add('on');
   msgEl.textContent  = 'Connecting…';
   countsEl.textContent = '';
+  return { btn, orig, cancelBtn, wrap, msgEl, countsEl, started: Date.now() };
+}
+
+function _endRefreshUI(ui){
+  ui.btn.disabled = false;
+  ui.btn.innerHTML = ui.orig;
+  ui.cancelBtn.style.display = 'none';
+  ui.wrap.classList.remove('on');
+}
+
+function refreshAppliedLocal(){
+  const ui = _startRefreshUI();
+  if(!ui) return;
   setStatus('Scanning Gmail for applications in the past 6 months…');
 
-  const started = Date.now();
   const es = new EventSource('/refresh-applied-stream');
   _refreshES = es;
 
   function cleanup(){
     es.close();
     _refreshES = null;
-    btn.disabled = false;
-    btn.innerHTML = orig;
-    cancelBtn.style.display = 'none';
-    wrap.classList.remove('on');
+    _endRefreshUI(ui);
   }
 
   es.addEventListener('progress', (e) => {
     const d = JSON.parse(e.data);
-    msgEl.textContent = d.message || '…';
-    const secs = Math.floor((Date.now()-started)/1000);
+    ui.msgEl.textContent = d.message || '…';
+    const secs = Math.floor((Date.now()-ui.started)/1000);
     const parts = [];
     if(d.searches) parts.push(`${d.searches} search`+(d.searches>1?'es':''));
     if(d.reads)    parts.push(`${d.reads} read`+(d.reads>1?'s':''));
     parts.push(`${secs}s`);
-    countsEl.textContent = parts.join(' · ');
+    ui.countsEl.textContent = parts.join(' · ');
   });
 
   es.addEventListener('done', async (e) => {
@@ -541,7 +562,7 @@ function refreshApplied(){
     const addedNote = d.added && d.added.length
       ? ` · added: ${d.added.slice(0,5).join(', ')}${d.added.length>5?'…':''}`
       : '';
-    const secs = Math.floor((Date.now()-started)/1000);
+    const secs = Math.floor((Date.now()-ui.started)/1000);
     setStatus(`✓ Gmail scan complete in ${secs}s — ${d.scanned} found, ${d.added.length} new, ${d.total} total applied${addedNote}`);
     if(allJobs.length){
       const visible = getVisibleJobs();
@@ -556,6 +577,84 @@ function refreshApplied(){
     cleanup();
     setStatus('⚠ Refresh failed — ' + msg);
   });
+}
+
+async function _fetchLastRefresh(){
+  try {
+    const r = await fetch('./last_refresh.json?t=' + Date.now(), { cache: 'no-store' });
+    if(!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+async function refreshAppliedCloud(){
+  const ui = _startRefreshUI();
+  if(!ui) return;
+
+  const baselineTs = (await _fetchLastRefresh())?.ts || 0;
+  const triggerTs  = Math.floor(Date.now()/1000);
+
+  setStatus('Triggering Mac via ntfy…');
+  ui.msgEl.textContent = 'Sending trigger…';
+
+  let posted = false;
+  try {
+    const resp = await fetch('https://ntfy.sh/' + NTFY_TOPIC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: NTFY_TOKEN, ts: triggerTs })
+    });
+    posted = resp.ok;
+  } catch(e){
+    posted = false;
+  }
+  if(!posted){
+    _endRefreshUI(ui);
+    setStatus('⚠ Could not reach ntfy.sh — check connection.');
+    return;
+  }
+
+  ui.msgEl.textContent = 'Mac is scanning Gmail…';
+  setStatus('Mac is scanning Gmail (may take 30–90s)…');
+
+  const POLL_MS = 4000;
+  const MAX_MS  = 3 * 60 * 1000;
+
+  function tick(){
+    const elapsed = Date.now() - ui.started;
+    const secs = Math.floor(elapsed/1000);
+    ui.countsEl.textContent = `${secs}s`;
+    if(elapsed > MAX_MS){
+      clearInterval(_refreshPoll); _refreshPoll = null;
+      _endRefreshUI(ui);
+      setStatus('⚠ Timed out waiting for Mac. The scan may still complete; refresh later.');
+      return;
+    }
+    _fetchLastRefresh().then(async (lr) => {
+      if(!lr || !lr.ts || lr.ts <= baselineTs || lr.ts < triggerTs - 5) return;
+      // Got a fresh result.
+      clearInterval(_refreshPoll); _refreshPoll = null;
+      _endRefreshUI(ui);
+      if(lr.ok === false){
+        setStatus('⚠ Mac reported error: ' + (lr.error || 'unknown'));
+        return;
+      }
+      await loadRejectedCompanies();
+      const added = lr.added || [];
+      const addedNote = added.length
+        ? ` · added: ${added.slice(0,5).join(', ')}${added.length>5?'…':''}`
+        : '';
+      setStatus(`✓ Mac scan complete in ${secs}s — ${lr.scanned} found, ${added.length} new, ${lr.total} total applied${addedNote}`);
+      if(allJobs.length){
+        const visible = getVisibleJobs();
+        renderTable(visible);
+        updateBadge(visible);
+      }
+    });
+  }
+
+  _refreshPoll = setInterval(tick, POLL_MS);
+  tick();
 }
 
 // Init filters bar and rejected companies on load
