@@ -1,8 +1,9 @@
 {
   "ok": true,
-  "ts": 0,
-  "scanned": 0,
-  "added": [],
-  "total": 0,
-  "note": "placeholder — gets overwritten by gmail_scan.run_full_scan()"
+  "ts": 1778833313,
+  "scanned": 56,
+  "added": [
+    "amdocs"
+  ],
+  "total": 242
 }
