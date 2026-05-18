@@ -1,15 +1,7 @@
 {
   "ok": true,
-  "ts": 1779094619,
-  "scanned": 79,
-  "added": [
-    "lasso",
-    "noma",
-    "revolut",
-    "thermofisher",
-    "viber",
-    "wenrix",
-    "zoomd"
-  ],
+  "ts": 1779095716,
+  "scanned": 60,
+  "added": [],
   "total": 255
 }
