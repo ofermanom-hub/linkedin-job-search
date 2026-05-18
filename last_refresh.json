@@ -1,9 +1,11 @@
 {
   "ok": true,
-  "ts": 1778936255,
-  "scanned": 58,
+  "ts": 1779090324,
+  "scanned": 60,
   "added": [
-    "pagaya"
+    "easysend",
+    "kape",
+    "thales"
   ],
-  "total": 244
+  "total": 247
 }
