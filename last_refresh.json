@@ -1,11 +1,15 @@
 {
   "ok": true,
-  "ts": 1779090324,
-  "scanned": 60,
+  "ts": 1779094619,
+  "scanned": 79,
   "added": [
-    "easysend",
-    "kape",
-    "thales"
+    "lasso",
+    "noma",
+    "revolut",
+    "thermofisher",
+    "viber",
+    "wenrix",
+    "zoomd"
   ],
-  "total": 247
+  "total": 255
 }

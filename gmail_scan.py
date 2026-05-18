@@ -28,16 +28,21 @@ CLAUDE_SCAN_PROMPT = """Find every company I'm in active hiring conversations wi
 LAST 6 MONTHS — including applications, recruiter outreach, interviews, and home tasks.
 
 HARD LIMITS:
-  - Call mcp__claude_ai_Gmail__search_threads AT MOST 2 TIMES.
+  - Call mcp__claude_ai_Gmail__search_threads AT MOST 3 TIMES.
   - Use pageSize: 50 (the max).
   - DO NOT call get_thread.
   - DO NOT paginate beyond the first page.
 
-SEARCH 1 — application confirmations:
-  newer_than:6m (subject:"thanks for applying" OR subject:"thank you for applying"
-    OR subject:"we got it" OR subject:"application received"
-    OR subject:"we received your application" OR subject:"application submitted"
-    OR "thanks for your interest in" OR "we've received your application")
+SEARCH 1 — application confirmations AND rejections (body-level match):
+  Many rejection emails have neutral subjects ("Update on your application")
+  but the BODY contains "Thanks for applying to the <role> role at <Company>".
+  Drop subject: prefix so Gmail full-text searches body too.
+  newer_than:6m ("thanks for applying to" OR "thank you for applying to"
+    OR "thanks for your interest in" OR "thank you for your interest in"
+    OR "we received your application" OR "we've received your application"
+    OR "application received" OR "application submitted"
+    OR subject:"thanks for applying" OR subject:"thank you for applying"
+    OR subject:"we got it" OR subject:"application received")
 
 SEARCH 2 — recruiter / interview / home-task signals:
   newer_than:6m (subject:"opportunity at" OR subject:"opportunity with"
@@ -45,6 +50,19 @@ SEARCH 2 — recruiter / interview / home-task signals:
     OR subject:"phone interview" OR subject:"home task" OR subject:"take-home"
     OR subject:"home assignment" OR subject:"next steps" OR subject:"next step"
     OR subject:"regarding your" OR subject:"position at" OR subject:"role at")
+
+SEARCH 3 — rejection signals (subject + body):
+  Catches rejections whose subject never says "thanks for applying".
+  newer_than:6m ("decided to move forward with other candidates"
+    OR "decided to move forward with candidates"
+    OR "we've decided to move forward" OR "we have decided to move forward"
+    OR "move forward with candidates whose"
+    OR "not moving forward" OR "won't be moving forward"
+    OR "closer fit" OR "best in your search" OR "best of luck in your search"
+    OR "decided not to proceed" OR "pursue other candidates"
+    OR subject:"update on your application" OR subject:"application update"
+    OR subject:"regarding your application" OR subject:"your application at"
+    OR subject:"your application to" OR subject:"application status")
 
 For EACH returned thread, extract the company from subject + sender:
 
