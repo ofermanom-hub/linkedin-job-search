@@ -1,7 +1,11 @@
 {
   "ok": true,
-  "ts": 1779095716,
-  "scanned": 60,
-  "added": [],
-  "total": 255
+  "ts": 1779691869,
+  "scanned": 74,
+  "added": [
+    "formtitan",
+    "kovrr",
+    "thermo fisher"
+  ],
+  "total": 258
 }
