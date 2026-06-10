@@ -1,11 +1,15 @@
 {
   "ok": true,
-  "ts": 1779691869,
-  "scanned": 74,
+  "ts": 1781068169,
+  "scanned": 72,
   "added": [
-    "formtitan",
-    "kovrr",
-    "thermo fisher"
+    "airwallex",
+    "blink",
+    "bridgewise",
+    "enso",
+    "guidde",
+    "pearl",
+    "travelbooster"
   ],
-  "total": 258
+  "total": 265
 }
