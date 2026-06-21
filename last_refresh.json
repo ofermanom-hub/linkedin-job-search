@@ -1,9 +1,5 @@
 {
-  "ok": true,
-  "ts": 1781068403,
-  "scanned": 72,
-  "added": [
-    "travel booster"
-  ],
-  "total": 266
+  "ok": false,
+  "ts": 1782024098,
+  "error": "claude exited 1: "
 }
